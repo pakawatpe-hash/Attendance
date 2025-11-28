@@ -22,11 +22,9 @@ import {
   ChevronUp,
   Calendar,
   Filter,
-  FileSpreadsheet, // ใช้ไอคอนเดิมได้
+  FileSpreadsheet, 
 } from "lucide-react";
 
-// --- เอา import xlsx ออก เพื่อแก้ Error ---
-// import * as XLSX from "xlsx";
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
