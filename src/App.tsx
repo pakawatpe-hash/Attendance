@@ -22,7 +22,11 @@ import {
   ChevronUp,
   Calendar,
   Filter,
+  FileSpreadsheet, // เพิ่มไอคอน Excel
 } from "lucide-react";
+
+// --- เพิ่ม Library สำหรับ Excel (อย่าลืมลง Dependencies: xlsx) ---
+import * as XLSX from "xlsx";
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
@@ -38,15 +42,21 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-
+// ==========================================
+// 📍 ตั้งค่าพิกัดวิทยาลัย (วิทยาลัยเทคนิคนนทบุรี)
+// ==========================================
 const COLLEGE_LAT = 14.105260105890562;
 const COLLEGE_LNG = 100.32044313706368;
-const MAX_DISTANCE_METERS = 50; 
+const MAX_DISTANCE_METERS = 50;
 
-
+// ==========================================
+// 🔑 รหัสลับสำหรับสมัครเป็นอาจารย์
+// ==========================================
 const TEACHER_SECRET_CODE = "3399";
 
-
+// ==========================================
+// ส่วนตั้งค่า Firebase
+// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyD2mam9j5GCa90BF5rLnrRelJi7tJ8lTrE",
   authDomain: "attendance-check-40d47.firebaseapp.com",
@@ -57,7 +67,7 @@ const firebaseConfig = {
   measurementId: "G-5VYSED3XLJ",
 };
 
-
+// เริ่มต้นระบบ Firebase
 let app: any, auth: any, db: any;
 try {
   app = initializeApp(firebaseConfig);
@@ -67,7 +77,7 @@ try {
   console.error("Firebase Config Error:", e);
 }
 
-
+// --- สูตรคำนวณระยะทาง GPS ---
 function getDistanceFromLatLonInMeters(
   lat1: number,
   lon1: number,
@@ -156,7 +166,6 @@ export default function PhotoAttendanceSystem() {
 
   useEffect(() => {
     if (!firebaseUser || !db) return;
-
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -165,7 +174,6 @@ export default function PhotoAttendanceSystem() {
       }));
       setUsers(loadedUsers);
     });
-
     const attendanceQuery = query(collection(db, "attendance"));
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
       const loadedRecords = snapshot.docs.map((doc) => {
@@ -183,7 +191,6 @@ export default function PhotoAttendanceSystem() {
       );
       setAttendanceRecords(loadedRecords);
     });
-
     return () => {
       unsubUsers();
       unsubAttendance();
@@ -253,12 +260,10 @@ export default function PhotoAttendanceSystem() {
       department: "คอมพิวเตอร์",
     };
     const allUsers = [...users, hardcodedAdmin];
-
     const user = allUsers.find(
       (u) =>
         u.username === loginForm.username && u.password === loginForm.password
     );
-
     if (user) {
       setCurrentUser(user);
       setPage(user.role === "teacher" ? "teacher" : "student");
@@ -428,7 +433,7 @@ export default function PhotoAttendanceSystem() {
 
     if (isOffCampus) {
       alert(
-        `❌ ไม่สามารถเช็คชื่อได้!\n\nคุณอยู่นอกโดมในวิทยาลัย (ห่าง ${Math.round(
+        `❌ ไม่สามารถเช็คชื่อได้!\n\nคุณอยู่นอกพื้นที่วิทยาลัย (ห่าง ${Math.round(
           distanceToCollege || 0
         )} ม.)\nกรุณาขยับเข้ามาในรัศมี ${MAX_DISTANCE_METERS} เมตร`
       );
@@ -503,6 +508,33 @@ export default function PhotoAttendanceSystem() {
         alert("เปลี่ยนรหัสไม่สำเร็จ");
       }
     }
+  };
+
+  // --- Export Excel Function (.xlsx) ---
+  const exportToExcel = (student: any) => {
+    const studentRecords = attendanceRecords
+      .filter((r) => r.username === student.username)
+      .sort(
+        (a, b) =>
+          new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()
+      );
+
+    // เตรียมข้อมูลสำหรับ Excel
+    const data = studentRecords.map((record) => ({
+      วันที่: formatDate(record.checkInTime),
+      เวลา: formatTime(record.checkInTime),
+      สถานะ: record.status === "late" ? "มาสาย" : "มาทันเวลา",
+      สถานที่: record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย",
+      ระยะห่าง: Math.round(record.distance || 0) + " เมตร",
+    }));
+
+    // สร้าง Workbook และ Worksheet ด้วย xlsx library
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+
+    // ดาวน์โหลดไฟล์
+    XLSX.writeFile(wb, `ประวัติการเช็คชื่อ_${student.fullName}.xlsx`);
   };
 
   // --- UI Components ---
@@ -1005,14 +1037,14 @@ export default function PhotoAttendanceSystem() {
                         </div>
                         <div
                           className={`text-[10px] sm:text-xs mt-1 flex items-center gap-1 ${
-                            record.isOffCampus ? "text-red-500" : "text-green-600"
+                            record.isOffCampus
+                              ? "text-red-500"
+                              : "text-green-600"
                           }`}
                         >
                           <MapPin size={10} />
-                          {record.isOffCampus
-                            ? "นอกพื้นที่"
-                            : "ในวิทยาลัย"}{" "}
-                          ({Math.round(record.distance || 0)} ม.)
+                          {record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} (
+                          {Math.round(record.distance || 0)} ม.)
                         </div>
                       </div>
                       <div className="text-right flex flex-col items-end shrink-0">
@@ -1076,9 +1108,7 @@ export default function PhotoAttendanceSystem() {
       return r.grade === activeGrade && recordDate === filterDate;
     });
 
-    const gradePresent = gradeRecs.filter(
-      (r) => r.status === "present"
-    ).length;
+    const gradePresent = gradeRecs.filter((r) => r.status === "present").length;
     const gradeLate = gradeRecs.filter((r) => r.status === "late").length;
 
     return (
@@ -1125,17 +1155,28 @@ export default function PhotoAttendanceSystem() {
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />{" "}
                     ประวัติ: {viewingHistoryStudent.fullName}
                   </h3>
-                  <button
-                    onClick={() => setViewingHistoryStudent(null)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition"
-                  >
-                    <X size={20} className="text-gray-500" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => exportToExcel(viewingHistoryStudent)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm"
+                      title="Export to Excel"
+                    >
+                      <FileSpreadsheet size={16} /> Export Excel
+                    </button>
+                    <button
+                      onClick={() => setViewingHistoryStudent(null)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition"
+                    >
+                      <X size={20} className="text-gray-500" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
                   {attendanceRecords
-                    .filter((r) => r.username === viewingHistoryStudent.username)
+                    .filter(
+                      (r) => r.username === viewingHistoryStudent.username
+                    )
                     .sort((a, b) => b.checkInTime - a.checkInTime)
                     .map((record) => (
                       <div
@@ -1321,7 +1362,8 @@ export default function PhotoAttendanceSystem() {
                   <div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
                       <h2 className="text-lg sm:text-xl font-bold text-indigo-900 flex items-center gap-2">
-                        <Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด ({activeGrade})
+                        <Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด (
+                        {activeGrade})
                       </h2>
                       <div className="text-xs sm:text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">
                         วันที่:{" "}
@@ -1369,15 +1411,15 @@ export default function PhotoAttendanceSystem() {
                     </label>
                   </div>
                   <div className="flex w-full sm:w-auto items-center justify-between gap-4">
-                     <input
-                        type="time"
-                        value={lateTime}
-                        onChange={(e) => setLateTime(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto"
-                      />
-                      <div className="ml-auto sm:ml-0 flex items-center gap-2 text-base sm:text-lg font-semibold text-indigo-700">
-                        <Clock className="w-5 h-5" /> {formatTime(currentTime)}
-                      </div>
+                    <input
+                      type="time"
+                      value={lateTime}
+                      onChange={(e) => setLateTime(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto"
+                    />
+                    <div className="ml-auto sm:ml-0 flex items-center gap-2 text-base sm:text-lg font-semibold text-indigo-700">
+                      <Clock className="w-5 h-5" /> {formatTime(currentTime)}
+                    </div>
                   </div>
                 </div>
 
