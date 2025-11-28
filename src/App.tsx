@@ -22,9 +22,8 @@ import {
   ChevronUp,
   Calendar,
   Filter,
-  FileSpreadsheet, 
+  FileSpreadsheet,
 } from "lucide-react";
-
 
 // --- Firebase Imports ---
 import { initializeApp } from "firebase/app";
@@ -39,9 +38,12 @@ import {
   query,
   updateDoc,
 } from "firebase/firestore";
-const COLLEGE_LAT = 14.105232;
-const COLLEGE_LNG = 100.320452;
+
+
+const COLLEGE_LAT = 14.105260105890562;
+const COLLEGE_LNG = 100.32044313706368;
 const MAX_DISTANCE_METERS = 50;
+
 
 const TEACHER_SECRET_CODE = "3399";
 
@@ -55,7 +57,7 @@ const firebaseConfig = {
   measurementId: "G-5VYSED3XLJ",
 };
 
-// เริ่มต้นระบบ Firebase
+
 let app: any, auth: any, db: any;
 try {
   app = initializeApp(firebaseConfig);
@@ -65,7 +67,7 @@ try {
   console.error("Firebase Config Error:", e);
 }
 
-// --- สูตรคำนวณระยะทาง GPS ---
+
 function getDistanceFromLatLonInMeters(
   lat1: number,
   lon1: number,
@@ -90,8 +92,14 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
+const getYearMonth = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 export default function PhotoAttendanceSystem() {
-  // --- ส่วนที่ 1: Logic & State ---
+
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [page, setPage] = useState("login");
 
@@ -99,9 +107,17 @@ export default function PhotoAttendanceSystem() {
 
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
+
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+
+
   const [filterDate, setFilterDate] = useState<string>(
     new Date().toISOString().split("T")[0]
+  );
+
+
+  const [historyFilterMonth, setHistoryFilterMonth] = useState<string>(
+    getYearMonth(new Date())
   );
 
   const [users, setUsers] = useState<any[]>([]);
@@ -498,19 +514,22 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- Export CSV Function (No external library needed) ---
+  // --- Export CSV Function (Filtered by Month) ---
   const exportToCSV = (student: any) => {
     const studentRecords = attendanceRecords
-      .filter((r) => r.username === student.username)
+      .filter((r) => {
+        const recordMonth = getYearMonth(new Date(r.checkInTime));
+        return (
+          r.username === student.username && recordMonth === historyFilterMonth
+        );
+      })
       .sort(
         (a, b) =>
           new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()
       );
 
-    // กำหนดหัวตาราง
     const headers = ["วันที่", "เวลา", "สถานะ", "สถานที่", "ระยะห่าง"];
 
-    // แปลงข้อมูลเป็นแถว
     const rows = studentRecords.map((record) => [
       formatDate(record.checkInTime),
       formatTime(record.checkInTime),
@@ -519,23 +538,20 @@ export default function PhotoAttendanceSystem() {
       Math.round(record.distance || 0) + " เมตร",
     ]);
 
-    // รวมหัวตารางและข้อมูลเข้าด้วยกัน
     const csvContent = [
       headers.join(","),
       ...rows.map((row) => row.join(",")),
     ].join("\n");
 
-    // สร้างไฟล์ CSV พร้อม BOM (เพื่อให้ Excel อ่านภาษาไทยออก)
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csvContent], {
       type: "text/csv;charset=utf-8;",
     });
 
-    // สร้างลิงก์ดาวน์โหลด
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `ประวัติการเช็คชื่อ_${student.fullName}.csv`;
+    link.download = `ประวัติการเช็คชื่อ_${student.fullName}_${historyFilterMonth}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -960,7 +976,7 @@ export default function PhotoAttendanceSystem() {
                       : "bg-green-600 hover:bg-green-700 shadow-lg"
                   }`}
                 >
-                  {isOffCampus ? "❌ อยู่นอกพื้นที่" : "📸 ถ่ายรูป"}
+                  {isOffCampus ? "❌ คุณอยู่นอกพื้นที่โดม" : "📸 ถ่ายรูป"}
                 </button>
               </div>
             )}
@@ -979,7 +995,7 @@ export default function PhotoAttendanceSystem() {
                       <AlertTriangle size={18} /> ไม่สามารถเช็คชื่อได้
                     </p>
                     <p>
-                      คุณอยู่ห่างจากวิทยาลัย{" "}
+                      คุณอยู่ห่างจากโดมในวิทยาลัย{" "}
                       {Math.round(distanceToCollege || 0)} เมตร
                       กรุณาขยับเข้ามาใกล้กว่านี้
                     </p>
@@ -1154,18 +1170,32 @@ export default function PhotoAttendanceSystem() {
             {/* --- MODE: ดูประวัติรายบุคคล (Viewing History Student) --- */}
             {viewingHistoryStudent ? (
               <div className="bg-white rounded-xl">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <h3 className="text-base sm:text-lg font-bold text-gray-700 flex items-center gap-2">
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />{" "}
                     ประวัติ: {viewingHistoryStudent.fullName}
                   </h3>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {/* Month Filter */}
+                    <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border">
+                      <Calendar size={16} className="text-gray-500" />
+                      <span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">
+                        เดือน:
+                      </span>
+                      <input
+                        type="month"
+                        value={historyFilterMonth}
+                        onChange={(e) => setHistoryFilterMonth(e.target.value)}
+                        className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto"
+                      />
+                    </div>
+
                     <button
                       onClick={() => exportToCSV(viewingHistoryStudent)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap"
                       title="Export to CSV"
                     >
-                      <FileSpreadsheet size={16} /> Export CSV
+                      <FileSpreadsheet size={16} /> Export
                     </button>
                     <button
                       onClick={() => setViewingHistoryStudent(null)}
@@ -1178,9 +1208,13 @@ export default function PhotoAttendanceSystem() {
 
                 <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
                   {attendanceRecords
-                    .filter(
-                      (r) => r.username === viewingHistoryStudent.username
-                    )
+                    .filter((r) => {
+                      const rMonth = getYearMonth(new Date(r.checkInTime));
+                      return (
+                        r.username === viewingHistoryStudent.username &&
+                        rMonth === historyFilterMonth
+                      );
+                    })
                     .sort((a, b) => b.checkInTime - a.checkInTime)
                     .map((record) => (
                       <div
@@ -1214,11 +1248,15 @@ export default function PhotoAttendanceSystem() {
                         </div>
                       </div>
                     ))}
-                  {attendanceRecords.filter(
-                    (r) => r.username === viewingHistoryStudent.username
-                  ).length === 0 && (
+                  {attendanceRecords.filter((r) => {
+                    const rMonth = getYearMonth(new Date(r.checkInTime));
+                    return (
+                      r.username === viewingHistoryStudent.username &&
+                      rMonth === historyFilterMonth
+                    );
+                  }).length === 0 && (
                     <p className="text-center text-gray-400 py-8">
-                      ไม่มีประวัติการเช็คชื่อ
+                      ไม่มีประวัติในเดือนนี้
                     </p>
                   )}
                 </div>
@@ -1267,7 +1305,10 @@ export default function PhotoAttendanceSystem() {
                         >
                           <div
                             className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:opacity-80 transition"
-                            onClick={() => setViewingHistoryStudent(student)}
+                            onClick={() => {
+                              setViewingHistoryStudent(student);
+                              setHistoryFilterMonth(getYearMonth(new Date())); // Reset to current month
+                            }}
                             title="กดเพื่อดูประวัติ"
                           >
                             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm sm:text-base shrink-0">
@@ -1284,7 +1325,10 @@ export default function PhotoAttendanceSystem() {
                           </div>
                           <div className="flex gap-2 ml-auto md:ml-0 w-full md:w-auto justify-end">
                             <button
-                              onClick={() => setViewingHistoryStudent(student)}
+                              onClick={() => {
+                                setViewingHistoryStudent(student);
+                                setHistoryFilterMonth(getYearMonth(new Date()));
+                              }}
                               className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm font-medium"
                             >
                               <FileText size={14} /> ดูประวัติ
