@@ -64,7 +64,7 @@ const firebaseConfig = {
 };
 
 // เริ่มต้นระบบ Firebase
-let app, auth, db;
+let app: any, auth: any, db: any;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
