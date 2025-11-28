@@ -907,7 +907,7 @@ export default function PhotoAttendanceSystem() {
                       <div className="bg-red-600/90 text-white p-6 rounded-xl shadow-2xl mx-6 text-center backdrop-blur-sm animate-pulse border-2 border-white/50">
                         <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
                         <h3 className="text-2xl font-bold mb-2">
-                          กรุณาเข้าใกล้วิทยาลัยมากกว่านี้
+                          กรุณาเข้าใกล้โดมในวิทยาลัย
                         </h3>
                         <p className="text-white/90">
                           ระยะห่างปัจจุบัน: {Math.round(distanceToCollege || 0)}{" "}
