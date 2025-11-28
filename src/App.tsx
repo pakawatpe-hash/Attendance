@@ -38,21 +38,15 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-// ==========================================
-// 📍 ตั้งค่าพิกัดวิทยาลัย
-// ==========================================
+
 const COLLEGE_LAT = 14.105260105890562;
 const COLLEGE_LNG = 100.32044313706368;
-const MAX_DISTANCE_METERS = 50; // ปรับเป็น 50 เมตร
+const MAX_DISTANCE_METERS = 50; 
 
-// ==========================================
-// 🔑 รหัสลับสำหรับสมัครเป็นอาจารย์
-// ==========================================
+
 const TEACHER_SECRET_CODE = "3399";
 
-// ==========================================
-// ส่วนตั้งค่า Firebase
-// ==========================================
+
 const firebaseConfig = {
   apiKey: "AIzaSyD2mam9j5GCa90BF5rLnrRelJi7tJ8lTrE",
   authDomain: "attendance-check-40d47.firebaseapp.com",
@@ -63,7 +57,7 @@ const firebaseConfig = {
   measurementId: "G-5VYSED3XLJ",
 };
 
-// เริ่มต้นระบบ Firebase
+
 let app: any, auth: any, db: any;
 try {
   app = initializeApp(firebaseConfig);
@@ -73,7 +67,7 @@ try {
   console.error("Firebase Config Error:", e);
 }
 
-// --- สูตรคำนวณระยะทาง GPS ---
+
 function getDistanceFromLatLonInMeters(
   lat1: number,
   lon1: number,
@@ -434,7 +428,7 @@ export default function PhotoAttendanceSystem() {
 
     if (isOffCampus) {
       alert(
-        `❌ ไม่สามารถเช็คชื่อได้!\n\nคุณอยู่นอกพื้นที่วิทยาลัย (ห่าง ${Math.round(
+        `❌ ไม่สามารถเช็คชื่อได้!\n\nคุณอยู่นอกโดมในวิทยาลัย (ห่าง ${Math.round(
           distanceToCollege || 0
         )} ม.)\nกรุณาขยับเข้ามาในรัศมี ${MAX_DISTANCE_METERS} เมตร`
       );
