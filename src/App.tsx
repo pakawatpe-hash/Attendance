@@ -64,7 +64,7 @@ const firebaseConfig = {
 };
 
 // เริ่มต้นระบบ Firebase
-let app, auth, db;
+let app: any, auth: any, db: any;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -648,7 +648,7 @@ export default function PhotoAttendanceSystem() {
             {registerForm.role === "teacher" && (
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 animate-pulse">
                 <label className="block text-sm font-bold text-yellow-800 mb-2 flex items-center gap-2">
-                  <Lock size={16} /> รหัสยืนยันอาจารย์ (3399)
+                  <Lock size={16} /> รหัสยืนยันอาจารย์
                 </label>
                 <input
                   type="password"
