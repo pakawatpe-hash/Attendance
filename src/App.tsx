@@ -39,11 +39,11 @@ import {
 } from "firebase/firestore";
 
 // ==========================================
-// 📍 ตั้งค่าพิกัดวิทยาลัย
+// 📍 ตั้งค่าพิกัดวิทยาลัย (อัปเดตใหม่)
 // ==========================================
-const COLLEGE_LAT = 14.1045914;
-const COLLEGE_LNG = 100.320567;
-const MAX_DISTANCE_METERS = 500;
+const COLLEGE_LAT = 14.105260105890562;
+const COLLEGE_LNG = 100.32044313706368;
+const MAX_DISTANCE_METERS = 50; // ปรับเป็น 50 เมตร ตามที่ขอ
 
 // ==========================================
 // 🔑 รหัสลับสำหรับสมัครเป็นอาจารย์
@@ -64,7 +64,7 @@ const firebaseConfig = {
 };
 
 // เริ่มต้นระบบ Firebase
-let app: any, auth: any, db: any;
+let app, auth, db;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -107,7 +107,6 @@ export default function PhotoAttendanceSystem() {
 
   // State สำหรับหน้าจัดการนักเรียน & ดูประวัติ
   const [manageMode, setManageMode] = useState(false);
-  // const [editingStudent, setEditingStudent] = useState<any>(null);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
   // State สำหรับการกดขยายกล่องรายการเช็คชื่อ (Expand)
@@ -234,11 +233,12 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
+  // แสดงวันที่ภาษาไทยเต็มๆ (เช่น 28 พฤศจิกายน 2568)
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("th-TH", {
-      year: "numeric",
-      month: "long",
       day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
@@ -648,7 +648,7 @@ export default function PhotoAttendanceSystem() {
             {registerForm.role === "teacher" && (
               <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 animate-pulse">
                 <label className="block text-sm font-bold text-yellow-800 mb-2 flex items-center gap-2">
-                  <Lock size={16} /> รหัสยืนยันอาจารย์
+                  <Lock size={16} /> รหัสยืนยันอาจารย์ (3399)
                 </label>
                 <input
                   type="password"
@@ -1027,64 +1027,41 @@ export default function PhotoAttendanceSystem() {
                     key={record.id}
                     onClick={() => toggleExpandRecord(record.id)}
                     className={`rounded-lg border-2 overflow-hidden transition-all cursor-pointer hover:shadow-md ${
-                      record.status === "late"
+                        record.status === "late"
                         ? "bg-orange-50 border-orange-200"
                         : "bg-green-50 border-green-200"
                     }`}
                   >
                     <div className="flex items-center gap-4 p-4">
-                      <img
-                        src={record.photo}
-                        alt={record.studentName}
-                        className="w-12 h-12 rounded-full object-cover border"
-                      />
-                      <div className="flex-1">
-                        <div className="font-bold text-gray-800 text-lg">
-                          {formatDate(record.checkInTime)}
+                        <img
+                            src={record.photo}
+                            alt={record.studentName}
+                            className="w-12 h-12 rounded-full object-cover border"
+                        />
+                        <div className="flex-1">
+                            <div className="font-bold text-gray-800 text-lg">{formatDate(record.checkInTime)}</div>
+                            <div className="text-sm text-gray-600">{formatTime(record.checkInTime)} น.</div>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {formatTime(record.checkInTime)} น.
+                        <div className="text-right flex flex-col items-end">
+                             <div className={`px-3 py-1 rounded-full text-xs font-bold mb-1 ${
+                                record.status === "late" ? "bg-orange-200 text-orange-800" : "bg-green-200 text-green-800"
+                             }`}>
+                                {record.status === "late" ? "สาย" : "ทัน"}
+                             </div>
+                             {expandedRecordId === record.id ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
                         </div>
-                      </div>
-                      <div className="text-right flex flex-col items-end">
-                        <div
-                          className={`px-3 py-1 rounded-full text-xs font-bold mb-1 ${
-                            record.status === "late"
-                              ? "bg-orange-200 text-orange-800"
-                              : "bg-green-200 text-green-800"
-                          }`}
-                        >
-                          {record.status === "late" ? "สาย" : "ทัน"}
-                        </div>
-                        {expandedRecordId === record.id ? (
-                          <ChevronUp size={16} className="text-gray-400" />
-                        ) : (
-                          <ChevronDown size={16} className="text-gray-400" />
-                        )}
-                      </div>
                     </div>
-
+                    
                     {/* --- Expanded Details (Student View) --- */}
                     {expandedRecordId === record.id && (
-                      <div className="bg-white p-4 border-t border-gray-100 space-y-3 animate-fade-in">
-                        <div className="flex justify-center">
-                          <img
-                            src={record.photo}
-                            className="rounded-lg max-h-48 object-contain shadow-sm"
-                          />
+                        <div className="bg-white p-4 border-t border-gray-100 space-y-3 animate-fade-in">
+                             <div className="flex justify-center">
+                                 <img src={record.photo} className="rounded-lg max-h-48 object-contain shadow-sm"/>
+                             </div>
+                             <div className={`text-xs flex items-center justify-center gap-1 p-2 rounded-lg bg-gray-50 ${record.isOffCampus ? "text-red-500" : "text-green-600"}`}>
+                                <MapPin size={14} /> {record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} ({Math.round(record.distance || 0)} ม.)
+                             </div>
                         </div>
-                        <div
-                          className={`text-xs flex items-center justify-center gap-1 p-2 rounded-lg bg-gray-50 ${
-                            record.isOffCampus
-                              ? "text-red-500"
-                              : "text-green-600"
-                          }`}
-                        >
-                          <MapPin size={14} />{" "}
-                          {record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} (
-                          {Math.round(record.distance || 0)} ม.)
-                        </div>
-                      </div>
                     )}
                   </div>
                 ))}
@@ -1111,13 +1088,13 @@ export default function PhotoAttendanceSystem() {
       selectedGrade && uniqueGrades.includes(selectedGrade)
         ? selectedGrade
         : uniqueGrades[0];
-
+        
     // Filter ข้อมูลตาม Grade และ Date
     const gradeRecs = attendanceRecords.filter((r) => {
-      const recordDate = formatDateForInput(r.checkInTime); // แปลงเป็น YYYY-MM-DD
-      return r.grade === activeGrade && recordDate === filterDate;
+        const recordDate = formatDateForInput(r.checkInTime); // แปลงเป็น YYYY-MM-DD
+        return r.grade === activeGrade && recordDate === filterDate;
     });
-
+    
     const gradePresent = gradeRecs.filter((r) => r.status === "present").length;
     const gradeLate = gradeRecs.filter((r) => r.status === "late").length;
 
@@ -1134,435 +1111,337 @@ export default function PhotoAttendanceSystem() {
                   สำหรับอาจารย์: {currentUser?.fullName}
                 </p>
               </div>
-
+              
               <div className="flex gap-2">
                 <button
-                  onClick={() => setManageMode(!manageMode)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    manageMode
-                      ? "bg-blue-600 text-white"
-                      : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  }`}
+                    onClick={() => setManageMode(!manageMode)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${manageMode ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
                 >
-                  {manageMode ? <Users size={18} /> : <Settings size={18} />}
-                  {manageMode ? "กลับไปเช็คชื่อ" : "จัดการนักเรียน"}
+                    {manageMode ? <Users size={18}/> : <Settings size={18}/>}
+                    {manageMode ? 'กลับไปเช็คชื่อ' : 'จัดการนักเรียน'}
                 </button>
 
                 <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
                 >
-                  <LogOut size={18} /> ออกจากระบบ
+                    <LogOut size={18} /> ออกจากระบบ
                 </button>
               </div>
             </div>
 
             {/* --- MODE: ดูประวัติรายบุคคล (Viewing History Student) --- */}
             {viewingHistoryStudent ? (
-              <div className="bg-white rounded-xl">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-700 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-indigo-600" />{" "}
-                    ประวัติการเช็คชื่อ: {viewingHistoryStudent.fullName}
-                  </h3>
-                  <button
-                    onClick={() => setViewingHistoryStudent(null)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition"
-                  >
-                    <X size={20} className="text-gray-500" />
-                  </button>
-                </div>
-
-                <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
-                  {attendanceRecords
-                    .filter(
-                      (r) => r.username === viewingHistoryStudent.username
-                    )
-                    .sort((a, b) => b.checkInTime - a.checkInTime)
-                    .map((record) => (
-                      <div
-                        key={record.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border ${
-                          record.status === "late"
-                            ? "bg-orange-50 border-orange-200"
-                            : "bg-green-50 border-green-200"
-                        }`}
-                      >
-                        <img
-                          src={record.photo}
-                          className="w-12 h-12 rounded object-cover border"
-                        />
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-800">
-                            {formatDate(record.checkInTime)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {formatTime(record.checkInTime)} น.
-                          </div>
-                        </div>
-                        <div
-                          className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            record.status === "late"
-                              ? "bg-orange-200 text-orange-800"
-                              : "bg-green-200 text-green-800"
-                          }`}
+                <div className="bg-white rounded-xl">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-gray-700 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-indigo-600"/> ประวัติการเช็คชื่อ: {viewingHistoryStudent.fullName}
+                        </h3>
+                        <button 
+                            onClick={() => setViewingHistoryStudent(null)}
+                            className="p-2 hover:bg-gray-100 rounded-full transition"
                         >
-                          {record.status === "late" ? "สาย" : "ทัน"}
-                        </div>
-                      </div>
-                    ))}
-                  {attendanceRecords.filter(
-                    (r) => r.username === viewingHistoryStudent.username
-                  ).length === 0 && (
-                    <p className="text-center text-gray-400 py-8">
-                      ไม่มีประวัติการเช็คชื่อ
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : manageMode ? (
-              // --- MODE: จัดการนักเรียน ---
-              <div className="bg-white rounded-xl">
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-blue-600" />{" "}
-                    จัดการบัญชีนักเรียน ({activeGrade})
-                  </h3>
-
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {uniqueGrades.length > 0 ? (
-                      uniqueGrades.map((g) => (
-                        <button
-                          key={g}
-                          onClick={() => setSelectedGrade(g)}
-                          className={`px-5 py-2 rounded-full font-medium transition-all ${
-                            activeGrade === g
-                              ? "bg-blue-600 text-white shadow"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                          }`}
-                        >
-                          {g}
+                            <X size={20} className="text-gray-500"/>
                         </button>
-                      ))
-                    ) : (
-                      <div className="text-gray-400 italic">
-                        ไม่มีข้อมูลนักเรียน
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4">
-                    {users
-                      .filter(
-                        (u) => u.role === "student" && u.grade === activeGrade
-                      )
-                      .sort((a, b) => a.studentNumber - b.studentNumber)
-                      .map((student) => (
-                        <div
-                          key={student.id}
-                          className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200 gap-4"
-                        >
-                          <div
-                            className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition"
-                            onClick={() => setViewingHistoryStudent(student)}
-                            title="กดเพื่อดูประวัติ"
-                          >
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                              {student.studentNumber}
-                            </div>
-                            <div>
-                              <div className="font-bold text-gray-800">
-                                {student.fullName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                User: {student.username}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 ml-auto md:ml-0">
-                            <button
-                              onClick={() => setViewingHistoryStudent(student)}
-                              className="flex items-center gap-1 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-sm font-medium"
-                            >
-                              <FileText size={14} /> ดูประวัติ
-                            </button>
-                            <button
-                              onClick={() => changeStudentPassword(student)}
-                              className="flex items-center gap-1 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-sm font-medium"
-                            >
-                              <Edit size={14} /> แก้รหัส
-                            </button>
-                            <button
-                              onClick={() => deleteStudentAccount(student.id)}
-                              className="flex items-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium"
-                            >
-                              <UserMinus size={14} /> ลบ
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    {users.filter(
-                      (u) => u.role === "student" && u.grade === activeGrade
-                    ).length === 0 && (
-                      <p className="text-center text-gray-400 py-4">
-                        ไม่มีนักเรียนในชั้นนี้
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // --- MODE: เช็คชื่อปกติ (Attendance View) ---
-              <>
-                {/* Tabs */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
-                    เลือกระดับชั้น
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {uniqueGrades.length > 0 ? (
-                      uniqueGrades.map((g) => (
-                        <button
-                          key={g}
-                          onClick={() => setSelectedGrade(g)}
-                          className={`px-6 py-2 rounded-full font-medium transition-all ${
-                            activeGrade === g
-                              ? "bg-indigo-600 text-white shadow-md transform scale-105"
-                              : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50"
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="text-gray-400 italic">
-                        ยังไม่มีข้อมูลนักเรียนในระบบ
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* --- Date Filter (เพิ่มใหม่) --- */}
-                <div className="flex items-center gap-2 mb-6 bg-white p-3 rounded-lg border w-fit">
-                  <Calendar size={18} className="text-indigo-600" />
-                  <span className="text-sm font-bold text-gray-700">
-                    เลือกวันที่ดูข้อมูล:
-                  </span>
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                    className="outline-none text-indigo-600 font-bold bg-transparent cursor-pointer"
-                  />
-                </div>
-
-                {/* Summary Cards (แสดงยอดของวันที่เลือก) */}
-                {activeGrade && (
-                  <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-bold text-indigo-900 flex items-center gap-2">
-                        <Users className="w-6 h-6" /> สรุปยอด ({activeGrade})
-                      </h2>
-                      <div className="text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">
-                        วันที่:{" "}
-                        {new Date(filterDate).toLocaleDateString("th-TH", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-6">
-                      <div className="bg-white rounded-lg p-4 shadow-sm text-center border-l-4 border-blue-500">
-                        <div className="text-3xl font-bold text-blue-900 mb-1">
-                          {gradeRecs.length}
-                        </div>
-                        <div className="text-sm font-medium text-blue-600">
-                          มาเรียนทั้งหมด
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 shadow-sm text-center border-l-4 border-green-500">
-                        <div className="text-3xl font-bold text-green-900 mb-1">
-                          {gradePresent}
-                        </div>
-                        <div className="text-sm font-medium text-green-600">
-                          มาตรงเวลา
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 shadow-sm text-center border-l-4 border-orange-500">
-                        <div className="text-3xl font-bold text-orange-900 mb-1">
-                          {gradeLate}
-                        </div>
-                        <div className="text-sm font-medium text-orange-600">
-                          มาสาย
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-lg">
-                  <Settings className="w-5 h-5 text-gray-600" />
-                  <label className="text-sm font-medium text-gray-700">
-                    กำหนดเวลาสาย:
-                  </label>
-                  <input
-                    type="time"
-                    value={lateTime}
-                    onChange={(e) => setLateTime(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <div className="ml-auto flex items-center gap-2 text-lg font-semibold text-indigo-700">
-                    <Clock className="w-5 h-5" /> {formatTime(currentTime)}
-                  </div>
-                </div>
-
-                {/* Student List (Updated Design) */}
-                <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-                  <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg">
-                      <Users className="w-5 h-5" />
-                    </span>
-                    รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})
-                  </h2>
-
-                  {!activeGrade ? (
-                    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed">
-                      กรุณาเลือกชั้นเรียนด้านบน
-                    </div>
-                  ) : gradeRecs.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed">
-                      <Users className="w-12 h-12 mx-auto mb-2 opacity-30" />{" "}
-                      ไม่มีการเช็คชื่อในวันที่เลือก
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {gradeRecs
-                        .sort((a, b) => a.studentNumber - b.studentNumber)
-                        .map((record, index) => (
-                          <div
-                            key={record.id}
-                            onClick={() => toggleExpandRecord(record.id)} // Add click to expand
-                            className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${
-                              record.status === "late"
-                                ? "bg-orange-50 border-orange-200"
-                                : "bg-green-50 border-green-200"
-                            }`}
-                          >
-                            {/* --- Card Header (Visible) --- */}
-                            <div className="flex items-center p-4 gap-4">
-                              <div className="text-2xl font-bold text-gray-400 w-8 text-center">
-                                {record.studentNumber}
-                              </div>
-
-                              <img
-                                src={record.photo}
-                                alt={record.studentName}
-                                className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-sm"
-                              />
-
-                              <div className="flex-1 min-w-0">
-                                <div className="font-bold text-lg text-gray-800 truncate mb-1">
-                                  {record.studentName}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="bg-white border px-2 py-0.5 rounded text-xs text-gray-500 font-medium">
-                                    {record.grade}
-                                  </span>
-                                  <span className="text-gray-500 text-sm">
-                                    {formatDate(record.checkInTime)}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="text-right">
-                                <div
-                                  className={`text-2xl font-bold mb-1 ${
-                                    record.status === "late"
-                                      ? "text-orange-600"
-                                      : "text-green-600"
-                                  }`}
-                                >
-                                  {formatTime(record.checkInTime)}
-                                </div>
-                                <div
-                                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                                    record.status === "late"
-                                      ? "bg-orange-200 text-orange-800"
-                                      : "bg-green-200 text-green-800"
-                                  }`}
-                                >
-                                  {record.status === "late"
-                                    ? "มาสาย"
-                                    : "ทันเวลา"}
-                                </div>
-                              </div>
-
-                              <div className="pl-2 text-gray-400">
-                                {expandedRecordId === record.id ? (
-                                  <ChevronUp />
-                                ) : (
-                                  <ChevronDown />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* --- Expanded Content (Hidden by default) --- */}
-                            {expandedRecordId === record.id && (
-                              <div className="bg-white border-t border-gray-100 p-4 animate-fade-in">
-                                <div className="flex flex-col md:flex-row gap-4">
-                                  <div className="flex-1">
-                                    <p className="text-sm font-bold text-gray-500 mb-2">
-                                      รูปถ่ายยืนยัน:
-                                    </p>
-                                    <img
-                                      src={record.photo}
-                                      className="w-full h-48 object-contain bg-black/5 rounded-lg"
-                                    />
-                                  </div>
-                                  <div className="flex-1 flex flex-col justify-center items-center p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                    <div
-                                      className={`flex flex-col items-center gap-2 ${
-                                        record.isOffCampus
-                                          ? "text-red-600"
-                                          : "text-green-600"
-                                      }`}
-                                    >
-                                      {record.isOffCampus ? (
-                                        <AlertTriangle size={32} />
-                                      ) : (
-                                        <MapPin size={32} />
-                                      )}
-                                      <span className="font-bold text-lg">
-                                        {record.isOffCampus
-                                          ? "อยู่นอกพื้นที่"
-                                          : "อยู่ในพื้นที่วิทยาลัย"}
-                                      </span>
-                                      <span className="text-sm text-gray-500">
-                                        ระยะห่าง:{" "}
-                                        {Math.round(record.distance || 0)} เมตร
-                                      </span>
+                    
+                    <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+                        {attendanceRecords
+                            .filter(r => r.username === viewingHistoryStudent.username)
+                            .sort((a, b) => b.checkInTime - a.checkInTime)
+                            .map(record => (
+                                <div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === 'late' ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
+                                    <img src={record.photo} className="w-12 h-12 rounded object-cover border"/>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-gray-800">{formatDate(record.checkInTime)}</div>
+                                        <div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
                                     </div>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        deleteRecord(record.id);
-                                      }}
-                                      className="mt-6 w-full flex items-center justify-center gap-2 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition border border-red-100"
-                                    >
-                                      <Trash2 size={16} /> ลบรายการนี้
-                                    </button>
-                                  </div>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${record.status === 'late' ? 'bg-orange-200 text-orange-800' : 'bg-green-200 text-green-800'}`}>
+                                        {record.status === 'late' ? 'สาย' : 'ทัน'}
+                                    </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                            ))
+                        }
+                        {attendanceRecords.filter(r => r.username === viewingHistoryStudent.username).length === 0 && (
+                            <p className="text-center text-gray-400 py-8">ไม่มีประวัติการเช็คชื่อ</p>
+                        )}
                     </div>
-                  )}
                 </div>
-              </>
+            ) : manageMode ? (
+                // --- MODE: จัดการนักเรียน ---
+                <div className="bg-white rounded-xl">
+                     <div className="mb-6">
+                        <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+                            <Settings className="w-5 h-5 text-blue-600"/> จัดการบัญชีนักเรียน ({activeGrade})
+                        </h3>
+                        
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            {uniqueGrades.length > 0 ? (
+                            uniqueGrades.map((g) => (
+                                <button
+                                key={g}
+                                onClick={() => setSelectedGrade(g)}
+                                className={`px-5 py-2 rounded-full font-medium transition-all ${
+                                    activeGrade === g
+                                    ? "bg-blue-600 text-white shadow"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                }`}
+                                >
+                                {g}
+                                </button>
+                            ))
+                            ) : (
+                            <div className="text-gray-400 italic">ไม่มีข้อมูลนักเรียน</div>
+                            )}
+                        </div>
+
+                        <div className="grid gap-4">
+                            {users.filter(u => u.role === 'student' && u.grade === activeGrade)
+                            .sort((a, b) => a.studentNumber - b.studentNumber)
+                            .map(student => (
+                                <div key={student.id} className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200 gap-4">
+                                    <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition" onClick={() => setViewingHistoryStudent(student)} title="กดเพื่อดูประวัติ">
+                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                                            {student.studentNumber}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-gray-800">{student.fullName}</div>
+                                            <div className="text-sm text-gray-500">User: {student.username}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 ml-auto md:ml-0">
+                                        <button 
+                                            onClick={() => setViewingHistoryStudent(student)}
+                                            className="flex items-center gap-1 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-sm font-medium"
+                                        >
+                                            <FileText size={14}/> ดูประวัติ
+                                        </button>
+                                        <button 
+                                            onClick={() => changeStudentPassword(student)}
+                                            className="flex items-center gap-1 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-sm font-medium"
+                                        >
+                                            <Edit size={14}/> แก้รหัส
+                                        </button>
+                                        <button 
+                                            onClick={() => deleteStudentAccount(student.id)}
+                                            className="flex items-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium"
+                                        >
+                                            <UserMinus size={14}/> ลบ
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {users.filter(u => u.role === 'student' && u.grade === activeGrade).length === 0 && (
+                                <p className="text-center text-gray-400 py-4">ไม่มีนักเรียนในชั้นนี้</p>
+                            )}
+                        </div>
+                     </div>
+                </div>
+            ) : (
+                // --- MODE: เช็คชื่อปกติ (Attendance View) ---
+                <>
+                    {/* Tabs */}
+                    <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+                        เลือกระดับชั้น
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {uniqueGrades.length > 0 ? (
+                        uniqueGrades.map((g) => (
+                            <button
+                            key={g}
+                            onClick={() => setSelectedGrade(g)}
+                            className={`px-6 py-2 rounded-full font-medium transition-all ${
+                                activeGrade === g
+                                ? "bg-indigo-600 text-white shadow-md transform scale-105"
+                                : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50"
+                            }`}
+                            >
+                            {g}
+                            </button>
+                        ))
+                        ) : (
+                        <div className="text-gray-400 italic">
+                            ยังไม่มีข้อมูลนักเรียนในระบบ
+                        </div>
+                        )}
+                    </div>
+                    </div>
+                    
+                    {/* --- Date Filter (เพิ่มใหม่) --- */}
+                    <div className="flex items-center gap-2 mb-6 bg-white p-3 rounded-lg border w-fit">
+                        <Calendar size={18} className="text-indigo-600"/>
+                        <span className="text-sm font-bold text-gray-700">เลือกวันที่ดูข้อมูล:</span>
+                        <input 
+                            type="date" 
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            className="outline-none text-indigo-600 font-bold bg-transparent cursor-pointer"
+                        />
+                    </div>
+
+                    {/* Summary Cards (แสดงยอดของวันที่เลือก) */}
+                    {activeGrade && (
+                    <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-indigo-900 flex items-center gap-2">
+                            <Users className="w-6 h-6" /> สรุปยอด ({activeGrade})
+                        </h2>
+                        <div className="text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">
+                            วันที่: {new Date(filterDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-6">
+                        <div className="bg-white rounded-lg p-4 shadow-sm text-center border-l-4 border-blue-500">
+                            <div className="text-3xl font-bold text-blue-900 mb-1">
+                            {gradeRecs.length}
+                            </div>
+                            <div className="text-sm font-medium text-blue-600">
+                            มาเรียนทั้งหมด
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 shadow-sm text-center border-l-4 border-green-500">
+                            <div className="text-3xl font-bold text-green-900 mb-1">
+                            {gradePresent}
+                            </div>
+                            <div className="text-sm font-medium text-green-600">
+                            มาตรงเวลา
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 shadow-sm text-center border-l-4 border-orange-500">
+                            <div className="text-3xl font-bold text-orange-900 mb-1">
+                            {gradeLate}
+                            </div>
+                            <div className="text-sm font-medium text-orange-600">
+                            มาสาย
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    )}
+
+                    <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-lg">
+                    <Settings className="w-5 h-5 text-gray-600" />
+                    <label className="text-sm font-medium text-gray-700">
+                        กำหนดเวลาสาย:
+                    </label>
+                    <input
+                        type="time"
+                        value={lateTime}
+                        onChange={(e) => setLateTime(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <div className="ml-auto flex items-center gap-2 text-lg font-semibold text-indigo-700">
+                        <Clock className="w-5 h-5" /> {formatTime(currentTime)}
+                    </div>
+                    </div>
+
+                    {/* Student List (Updated Design) */}
+                    <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg">
+                        <Users className="w-5 h-5" />
+                        </span>
+                        รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})
+                    </h2>
+
+                    {!activeGrade ? (
+                        <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed">
+                        กรุณาเลือกชั้นเรียนด้านบน
+                        </div>
+                    ) : gradeRecs.length === 0 ? (
+                        <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed">
+                        <Users className="w-12 h-12 mx-auto mb-2 opacity-30" />{" "}
+                        ไม่มีการเช็คชื่อในวันที่เลือก
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                        {gradeRecs
+                            .sort((a, b) => a.studentNumber - b.studentNumber)
+                            .map((record, index) => (
+                            <div
+                                key={record.id}
+                                onClick={() => toggleExpandRecord(record.id)} // Add click to expand
+                                className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${
+                                record.status === "late"
+                                    ? "bg-orange-50 border-orange-200"
+                                    : "bg-green-50 border-green-200"
+                                }`}
+                            >
+                                {/* --- Card Header (Visible) --- */}
+                                <div className="flex items-center p-4 gap-4">
+                                    <div className="text-2xl font-bold text-gray-400 w-8 text-center">
+                                        {record.studentNumber}
+                                    </div>
+
+                                    <img
+                                        src={record.photo}
+                                        alt={record.studentName}
+                                        className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-sm"
+                                    />
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-lg text-gray-800 truncate mb-1">
+                                            {record.studentName}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-white border px-2 py-0.5 rounded text-xs text-gray-500 font-medium">
+                                                {record.grade}
+                                            </span>
+                                            <span className="text-gray-500 text-sm">
+                                                {formatDate(record.checkInTime)}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-right">
+                                        <div className={`text-2xl font-bold mb-1 ${record.status === 'late' ? 'text-orange-600' : 'text-green-600'}`}>
+                                            {formatTime(record.checkInTime)}
+                                        </div>
+                                        <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                                            record.status === 'late' ? 'bg-orange-200 text-orange-800' : 'bg-green-200 text-green-800'
+                                        }`}>
+                                            {record.status === 'late' ? 'มาสาย' : 'ทันเวลา'}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="pl-2 text-gray-400">
+                                        {expandedRecordId === record.id ? <ChevronUp/> : <ChevronDown/>}
+                                    </div>
+                                </div>
+
+                                {/* --- Expanded Content (Hidden by default) --- */}
+                                {expandedRecordId === record.id && (
+                                    <div className="bg-white border-t border-gray-100 p-4 animate-fade-in">
+                                        <div className="flex flex-col md:flex-row gap-4">
+                                            <div className="flex-1">
+                                                <p className="text-sm font-bold text-gray-500 mb-2">รูปถ่ายยืนยัน:</p>
+                                                <img src={record.photo} className="w-full h-48 object-contain bg-black/5 rounded-lg"/>
+                                            </div>
+                                            <div className="flex-1 flex flex-col justify-center items-center p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                                <div className={`flex flex-col items-center gap-2 ${record.isOffCampus ? 'text-red-600' : 'text-green-600'}`}>
+                                                    {record.isOffCampus ? <AlertTriangle size={32}/> : <MapPin size={32}/>}
+                                                    <span className="font-bold text-lg">{record.isOffCampus ? 'อยู่นอกพื้นที่' : 'อยู่ในพื้นที่วิทยาลัย'}</span>
+                                                    <span className="text-sm text-gray-500">ระยะห่าง: {Math.round(record.distance || 0)} เมตร</span>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); deleteRecord(record.id); }}
+                                                    className="mt-6 w-full flex items-center justify-center gap-2 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition border border-red-100"
+                                                >
+                                                    <Trash2 size={16}/> ลบรายการนี้
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            ))}
+                        </div>
+                    )}
+                    </div>
+                </>
             )}
+
           </div>
         </div>
       </div>
