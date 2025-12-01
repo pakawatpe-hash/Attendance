@@ -39,11 +39,13 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
+// --- Google Script URL (ลิงก์ของคุณ) ---
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMJv2BxUWa8YJOEytiQ877s3TI30Jy5DtXFshd5XALRDI9uzalBxr3m2hRbd-KjfQLJw/exec";
 
+// --- Constants ---
 const COLLEGE_LAT = 14.105260105890562;
 const COLLEGE_LNG = 100.32044313706368;
 const MAX_DISTANCE_METERS = 50;
-
 
 const TEACHER_SECRET_CODE = "3399";
 
@@ -57,7 +59,6 @@ const firebaseConfig = {
   measurementId: "G-5VYSED3XLJ",
 };
 
-
 let app: any, auth: any, db: any;
 try {
   app = initializeApp(firebaseConfig);
@@ -66,7 +67,6 @@ try {
 } catch (e) {
   console.error("Firebase Config Error:", e);
 }
-
 
 function getDistanceFromLatLonInMeters(
   lat1: number,
@@ -99,7 +99,6 @@ const getYearMonth = (date: Date) => {
 };
 
 export default function PhotoAttendanceSystem() {
-
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [page, setPage] = useState("login");
 
@@ -110,11 +109,9 @@ export default function PhotoAttendanceSystem() {
 
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
 
-
   const [filterDate, setFilterDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
-
 
   const [historyFilterMonth, setHistoryFilterMonth] = useState<string>(
     getYearMonth(new Date())
@@ -424,6 +421,7 @@ export default function PhotoAttendanceSystem() {
     startCamera();
   };
 
+  // --- ฟังก์ชันเช็คชื่อ (ส่งเข้า Google Sheets) ---
   const submitAttendance = async () => {
     if (!db) return;
     if (!capturedPhoto) {
@@ -465,12 +463,75 @@ export default function PhotoAttendanceSystem() {
     };
 
     try {
+      // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
+
+      // 2. ส่งข้อมูลไป Google Sheets & LINE
+      const payload = {
+        name: currentUser.fullName,
+        studentNumber: currentUser.studentNumber,
+        studentId: currentUser.studentNumber,
+        status: isLate ? "late" : "present",
+        checkInTime: formatTime(now),
+        grade: currentUser.grade || "ไม่ระบุชั้น"
+      };
+
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        // ไม่ใส่ headers application/json เพื่อแก้ปัญหา CORS
+        body: JSON.stringify(payload),
+      });
+
       setCapturedPhoto(null);
-      alert("เช็คชื่อสำเร็จ! บันทึกลงฐานข้อมูลแล้ว");
+      alert("เช็คชื่อสำเร็จ! บันทึกลงฐานข้อมูลและส่งแจ้งเตือนแล้ว");
     } catch (err: any) {
       alert("เกิดข้อผิดพลาดในการบันทึก: " + err.message);
     }
+  };
+
+  // --- ฟังก์ชันสำหรับกดปุ่มเพื่อส่งข้อมูลเก่าไป Google Sheets ---
+  const handleSyncData = async () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todaysRecords = attendanceRecords.filter(r => {
+      if (!r.checkInTime) return false;
+      const recordDate = new Date(r.checkInTime).toISOString().split('T')[0];
+      return recordDate === todayStr;
+    });
+
+    if (todaysRecords.length === 0) {
+      alert("ไม่พบข้อมูลการเช็คชื่อของวันนี้ในระบบ");
+      return;
+    }
+
+    if (!confirm(`พบข้อมูลวันนี้ ${todaysRecords.length} รายการ ต้องการส่งไป Google Sheets หรือไม่?`)) return;
+
+    let count = 0;
+    for (const record of todaysRecords) {
+      const payload = {
+        name: record.studentName,
+        studentNumber: record.studentNumber,
+        studentId: record.studentNumber,
+        status: record.status,
+        checkInTime: formatTime(new Date(record.checkInTime)),
+        grade: record.grade || "ไม่ระบุชั้น" 
+      };
+
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          body: JSON.stringify(payload),
+        });
+        count++;
+        // หน่วงเวลานิดนึงกัน Google Script รับไม่ทัน
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+      } catch (e) {
+        console.error("Sync error", e);
+      }
+    }
+
+    alert(`✅ ซิงค์ข้อมูลสำเร็จ ${count} รายการ! \nตอนนี้ข้อมูลในไฟล์ Excel น่าจะครบแล้วครับ`);
   };
 
   const deleteRecord = async (id: string) => {
@@ -1146,6 +1207,15 @@ export default function PhotoAttendanceSystem() {
               </div>
 
               <div className="flex flex-wrap justify-center gap-2">
+                
+                {/* ปุ่มซิงค์ข้อมูล (เพิ่มตรงนี้) */}
+                <button
+                  onClick={handleSyncData}
+                  className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm sm:text-base"
+                >
+                  <RefreshCw size={16} /> ซิงค์ข้อมูลวันนี้
+                </button>
+
                 <button
                   onClick={() => setManageMode(!manageMode)}
                   className={`flex items-center gap-2 px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors text-sm sm:text-base ${
