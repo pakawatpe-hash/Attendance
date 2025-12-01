@@ -23,6 +23,7 @@ import {
   Calendar,
   Filter,
   FileSpreadsheet,
+  Save,
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -39,7 +40,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-// --- Google Script URL (ลิงก์ของคุณ) ---
+
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeqlDsLOcUZN6GLJhntUjr6peBIf5ThNBbCKZVC968jtq9AEJiWDD1s6hQPZc3ktSnEw/exec";
 
 // --- Constants ---
@@ -106,6 +107,9 @@ export default function PhotoAttendanceSystem() {
 
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
+
+  const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", grade: "", department: "" });
 
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
 
@@ -549,6 +553,40 @@ export default function PhotoAttendanceSystem() {
         await deleteDoc(doc(db, "attendance", id));
       } catch (err) {
         alert("ลบข้อมูลไม่สำเร็จ");
+      }
+    }
+  };
+
+  const openEditModal = (student: any) => {
+    setEditingStudent(student);
+    setEditForm({
+      fullName: student.fullName,
+      studentNumber: student.studentNumber,
+      grade: student.grade,
+      department: student.department
+    });
+  };
+
+  // 2. ฟังก์ชันบันทึกข้อมูลลง Firebase
+  const saveStudentInfo = async () => {
+    if (!db || !editingStudent) return;
+    if (!editForm.fullName || !editForm.studentNumber || !editForm.grade) {
+      return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+    }
+
+    if (confirm(`ยืนยันการแก้ไขข้อมูลของ ${editingStudent.fullName} หรือไม่?`)) {
+      try {
+        const userRef = doc(db, "users", editingStudent.id);
+        await updateDoc(userRef, {
+          fullName: editForm.fullName,
+          studentNumber: editForm.studentNumber,
+          grade: editForm.grade,
+          department: editForm.department
+        });
+        alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅");
+        setEditingStudent(null); // ปิดหน้าต่าง
+      } catch (err: any) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
       }
     }
   };
