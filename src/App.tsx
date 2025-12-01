@@ -40,7 +40,7 @@ import {
 } from "firebase/firestore";
 
 // --- Google Script URL (ลิงก์ของคุณ) ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMJv2BxUWa8YJOEytiQ877s3TI30Jy5DtXFshd5XALRDI9uzalBxr3m2hRbd-KjfQLJw/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeqlDsLOcUZN6GLJhntUjr6peBIf5ThNBbCKZVC968jtq9AEJiWDD1s6hQPZc3ktSnEw/exec";
 
 // --- Constants ---
 const COLLEGE_LAT = 14.105260105890562;
