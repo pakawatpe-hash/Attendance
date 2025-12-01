@@ -467,6 +467,7 @@ export default function PhotoAttendanceSystem() {
   };
 
   // --- ฟังก์ชันเช็คชื่อ (แก้ไขให้ส่ง text/plain) ---
+// --- ฟังก์ชันเช็คชื่อ (ส่งเข้า Firebase + Google Sheets ทันที) ---
   const submitAttendance = async () => {
     if (!db) return;
     if (!capturedPhoto) {
@@ -523,7 +524,7 @@ export default function PhotoAttendanceSystem() {
 
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        // สำคัญ: ใช้ text/plain
+        // สำคัญ: ใช้ text/plain เพื่อให้ Google Script รับข้อมูลได้แน่นอน
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
         },
