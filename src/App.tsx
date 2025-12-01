@@ -478,7 +478,6 @@ export default function PhotoAttendanceSystem() {
 
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
         // สำคัญ: ใช้ text/plain
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
@@ -529,7 +528,6 @@ export default function PhotoAttendanceSystem() {
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
         // สำคัญ: ใช้ text/plain
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
