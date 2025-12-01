@@ -23,7 +23,7 @@ import {
   Calendar,
   Filter,
   FileSpreadsheet,
-  Save, // (เพิ่ม 1) เพิ่มไอคอน Save
+  Save, 
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -40,7 +40,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-// --- Google Script URL (ลิงก์ของคุณ) ---
+
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeqlDsLOcUZN6GLJhntUjr6peBIf5ThNBbCKZVC968jtq9AEJiWDD1s6hQPZc3ktSnEw/exec";
 
 // --- Constants ---
@@ -108,7 +108,7 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
-  // (เพิ่ม 2) State สำหรับแก้ไขข้อมูล
+
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", grade: "", department: "" });
 
@@ -182,7 +182,7 @@ export default function PhotoAttendanceSystem() {
         ...doc.data(),
       }));
       setUsers(loadedUsers);
-      setIsDataLoaded(true); // ข้อมูลมาแล้ว
+      setIsDataLoaded(true); 
     });
     const attendanceQuery = query(collection(db, "attendance"));
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
@@ -261,7 +261,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // (เพิ่ม 3) ฟังก์ชันเปิดหน้าต่างแก้ไข
+  
   const openEditModal = (student: any) => {
     setEditingStudent(student);
     setEditForm({
@@ -272,7 +272,7 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
-  // (เพิ่ม 4) ฟังก์ชันบันทึกการแก้ไขลง Firebase
+ 
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.grade) {
@@ -289,7 +289,7 @@ export default function PhotoAttendanceSystem() {
           department: editForm.department
         });
         alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅");
-        setEditingStudent(null); // ปิดหน้าต่าง
+        setEditingStudent(null); 
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
@@ -299,7 +299,7 @@ export default function PhotoAttendanceSystem() {
   const handleLogin = () => {
     const hardcodedAdmin = {
       username: "admin",
-      password: "admin123",
+      password: "admin987",
       role: "teacher",
       fullName: "อาจารย์ Admin",
       department: "คอมพิวเตอร์",
@@ -466,8 +466,7 @@ export default function PhotoAttendanceSystem() {
     startCamera();
   };
 
-  // --- ฟังก์ชันเช็คชื่อ (แก้ไขให้ส่ง text/plain) ---
-// --- ฟังก์ชันเช็คชื่อ (ส่งเข้า Firebase + Google Sheets ทันที) ---
+
   const submitAttendance = async () => {
     if (!db) return;
     if (!capturedPhoto) {
@@ -509,10 +508,10 @@ export default function PhotoAttendanceSystem() {
     };
 
     try {
-      // 1. บันทึกลง Firebase
+      
       await addDoc(collection(db, "attendance"), newRecord);
 
-      // 2. ส่งข้อมูลไป Google Sheets (แบบ text/plain เพื่อแก้ปัญหาข้อมูลไม่เข้า)
+     
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -524,7 +523,7 @@ export default function PhotoAttendanceSystem() {
 
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        // สำคัญ: ใช้ text/plain เพื่อให้ Google Script รับข้อมูลได้แน่นอน
+        
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
         },
@@ -538,11 +537,11 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- ฟังก์ชันซิงค์ข้อมูลย้อนหลัง (แก้ไขให้ส่ง text/plain) ---
+  
   const handleSyncData = async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     
-    // 1. กรองเอาเฉพาะข้อมูล "ของวันนี้"
+    
     const todaysRecords = attendanceRecords.filter(r => {
       if (!r.checkInTime) return false;
       const recordDate = new Date(r.checkInTime).toISOString().split('T')[0];
@@ -556,7 +555,7 @@ export default function PhotoAttendanceSystem() {
 
     if (!confirm(`พบข้อมูล ${todaysRecords.length} รายการ จะทำการซิงค์รวดเดียว... ยืนยัน?`)) return;
 
-    // 2. จัดรูปแบบข้อมูลใส่กล่อง (Array)
+    
     const batchData = todaysRecords.map(record => ({
       name: record.studentName,
       studentNumber: record.studentNumber,
@@ -574,7 +573,7 @@ export default function PhotoAttendanceSystem() {
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        // สำคัญ: ใช้ text/plain
+        
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
         },
@@ -1225,7 +1224,7 @@ export default function PhotoAttendanceSystem() {
 
   // Teacher Page
   if (page === "teacher") {
-    // หา Grade ทั้งหมดจากข้อมูลที่มี
+    
     const gradesFromRecords = attendanceRecords.map((r) => r.grade);
     const gradesFromUsers = users
       .filter((u) => u.role === "student")
@@ -1240,7 +1239,7 @@ export default function PhotoAttendanceSystem() {
         ? selectedGrade
         : uniqueGrades[0];
 
-    // Filter ข้อมูลตาม Grade และ Date
+    
     const gradeRecs = attendanceRecords.filter((r) => {
       const recordDate = formatDateForInput(r.checkInTime); // แปลงเป็น YYYY-MM-DD
       return r.grade === activeGrade && recordDate === filterDate;
@@ -1265,7 +1264,7 @@ export default function PhotoAttendanceSystem() {
 
               <div className="flex flex-wrap justify-center gap-2">
                 
-                {/* ปุ่มซิงค์ข้อมูล (เพิ่มตรงนี้) */}
+                {/* ปุ่มซิงค์ข้อมูล*/}
                 <button
                   onClick={handleSyncData}
                   className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm sm:text-base"
@@ -1519,7 +1518,7 @@ export default function PhotoAttendanceSystem() {
                   </div>
                 </div>
 
-                {/* --- Date Filter (เพิ่มใหม่) --- */}
+                {/* --- Date Filter  --- */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-6 bg-white p-3 rounded-lg border w-full sm:w-fit">
                   <div className="flex items-center gap-2">
                     <Calendar size={18} className="text-indigo-600" />
@@ -1535,7 +1534,7 @@ export default function PhotoAttendanceSystem() {
                   />
                 </div>
 
-                {/* Summary Cards (แสดงยอดของวันที่เลือก) */}
+                {/* Summary Cards  */}
                 {activeGrade && (
                   <div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
@@ -1750,7 +1749,7 @@ export default function PhotoAttendanceSystem() {
           </div>
         </div>
 
-        {/* (เพิ่ม 6) Modal สำหรับแก้ไขข้อมูล (Popup) */}
+        {/*  */}
         {editingStudent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
