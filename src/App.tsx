@@ -39,7 +39,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-// --- Google Script URL (ลิงก์ของคุณ) ---
+// --- Google Script URL (ตรวจสอบให้แน่ใจว่าเป็นลิงก์ล่าสุดของคุณ) ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMJv2BxUWa8YJOEytiQ877s3TI30Jy5DtXFshd5XALRDI9uzalBxr3m2hRbd-KjfQLJw/exec";
 
 // --- Constants ---
@@ -421,7 +421,7 @@ export default function PhotoAttendanceSystem() {
     startCamera();
   };
 
-  // --- ฟังก์ชันเช็คชื่อ (ส่งเข้า Google Sheets) ---
+  // --- ฟังก์ชันเช็คชื่อ (ส่งเข้า Google Sheets แบบ Real-time) ---
   const submitAttendance = async () => {
     if (!db) return;
     if (!capturedPhoto) {
@@ -466,7 +466,7 @@ export default function PhotoAttendanceSystem() {
       // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
 
-      // 2. ส่งข้อมูลไป Google Sheets & LINE
+      // 2. ส่งข้อมูลไป Google Sheets (แบบรายคน)
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -479,7 +479,7 @@ export default function PhotoAttendanceSystem() {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
-        // ไม่ใส่ headers application/json เพื่อแก้ปัญหา CORS
+        // ไม่ใส่ header เพื่อเลี่ยง CORS
         body: JSON.stringify(payload),
       });
 
@@ -490,9 +490,11 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- ฟังก์ชันสำหรับกดปุ่มเพื่อส่งข้อมูลเก่าไป Google Sheets ---
+  // --- ฟังก์ชันสำหรับกดปุ่มซิงค์ (ส่งไปแบบกล่องใหญ่) ---
   const handleSyncData = async () => {
     const todayStr = new Date().toISOString().split('T')[0];
+    
+    // 1. กรองเอาเฉพาะข้อมูล "ของวันนี้"
     const todaysRecords = attendanceRecords.filter(r => {
       if (!r.checkInTime) return false;
       const recordDate = new Date(r.checkInTime).toISOString().split('T')[0];
@@ -504,34 +506,36 @@ export default function PhotoAttendanceSystem() {
       return;
     }
 
-    if (!confirm(`พบข้อมูลวันนี้ ${todaysRecords.length} รายการ ต้องการส่งไป Google Sheets หรือไม่?`)) return;
+    if (!confirm(`พบข้อมูล ${todaysRecords.length} รายการ จะทำการซิงค์รวดเดียว... ยืนยัน?`)) return;
 
-    let count = 0;
-    for (const record of todaysRecords) {
-      const payload = {
-        name: record.studentName,
-        studentNumber: record.studentNumber,
-        studentId: record.studentNumber,
-        status: record.status,
-        checkInTime: formatTime(new Date(record.checkInTime)),
-        grade: record.grade || "ไม่ระบุชั้น" 
-      };
+    // 2. จัดรูปแบบข้อมูลใส่กล่อง (Array)
+    const batchData = todaysRecords.map(record => ({
+      name: record.studentName,
+      studentNumber: record.studentNumber,
+      studentId: record.studentNumber,
+      status: record.status,
+      checkInTime: formatTime(new Date(record.checkInTime)),
+      grade: record.grade || "ไม่ระบุชั้น"
+    }));
 
-      try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify(payload),
-        });
-        count++;
-        // หน่วงเวลานิดนึงกัน Google Script รับไม่ทัน
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-      } catch (e) {
-        console.error("Sync error", e);
-      }
+    // 3. ส่งไปทีเดียว (โหมด batch_sync)
+    const payload = {
+      mode: "batch_sync",
+      data: batchData
+    };
+
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify(payload),
+      });
+      
+      alert(`✅ ส่งข้อมูล ${batchData.length} รายการเรียบร้อยแล้ว!`);
+    } catch (e) {
+      console.error("Sync error", e);
+      alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
     }
-
-    alert(`✅ ซิงค์ข้อมูลสำเร็จ ${count} รายการ! \nตอนนี้ข้อมูลในไฟล์ Excel น่าจะครบแล้วครับ`);
   };
 
   const deleteRecord = async (id: string) => {
