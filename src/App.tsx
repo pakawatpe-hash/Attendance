@@ -39,7 +39,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
-// --- Google Script URL (ตรวจสอบให้แน่ใจว่าเป็นลิงก์ล่าสุดของคุณ) ---
+// --- Google Script URL (ลิงก์ของคุณ) ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMJv2BxUWa8YJOEytiQ877s3TI30Jy5DtXFshd5XALRDI9uzalBxr3m2hRbd-KjfQLJw/exec";
 
 // --- Constants ---
@@ -421,7 +421,7 @@ export default function PhotoAttendanceSystem() {
     startCamera();
   };
 
-  // --- ฟังก์ชันเช็คชื่อ (ส่งเข้า Google Sheets แบบ Real-time) ---
+  // --- ฟังก์ชันเช็คชื่อ (แก้ไขให้ส่ง text/plain) ---
   const submitAttendance = async () => {
     if (!db) return;
     if (!capturedPhoto) {
@@ -466,7 +466,7 @@ export default function PhotoAttendanceSystem() {
       // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
 
-      // 2. ส่งข้อมูลไป Google Sheets (แบบรายคน)
+      // 2. ส่งข้อมูลไป Google Sheets (แบบ text/plain เพื่อแก้ปัญหาข้อมูลไม่เข้า)
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -479,7 +479,10 @@ export default function PhotoAttendanceSystem() {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
-        // ไม่ใส่ header เพื่อเลี่ยง CORS
+        // สำคัญ: ใช้ text/plain
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
         body: JSON.stringify(payload),
       });
 
@@ -490,7 +493,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- ฟังก์ชันสำหรับกดปุ่มซิงค์ (ส่งไปแบบกล่องใหญ่) ---
+  // --- ฟังก์ชันซิงค์ข้อมูลย้อนหลัง (แก้ไขให้ส่ง text/plain) ---
   const handleSyncData = async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     
@@ -518,7 +521,6 @@ export default function PhotoAttendanceSystem() {
       grade: record.grade || "ไม่ระบุชั้น"
     }));
 
-    // 3. ส่งไปทีเดียว (โหมด batch_sync)
     const payload = {
       mode: "batch_sync",
       data: batchData
@@ -528,6 +530,10 @@ export default function PhotoAttendanceSystem() {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
+        // สำคัญ: ใช้ text/plain
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
         body: JSON.stringify(payload),
       });
       
