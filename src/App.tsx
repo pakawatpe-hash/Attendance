@@ -346,12 +346,11 @@ export default function PhotoAttendanceSystem() {
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
 
     try {
-      // 1. อัปเดตสถานะในตาราง leaves
+  
       await updateDoc(doc(db, "leaves", leave.id), {
         status: isApproved ? "approved" : "rejected"
       });
 
-      // 2. ถ้าอนุมัติ -> ให้ลงบันทึกการเข้าเรียนเป็น "Leave" ทันที
       if (isApproved) {
         const todayStr = leave.date; 
         const hasCheckedIn = attendanceRecords.some(r => {
@@ -575,7 +574,7 @@ export default function PhotoAttendanceSystem() {
       now.getHours() > parseInt(h) ||
       (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
 
-    // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
+   
     const todayStr = now.toISOString().split('T')[0]; 
     const hasCheckedInToday = attendanceRecords.some((record) => {
       if (record.username !== currentUser.username) return false;
@@ -588,7 +587,7 @@ export default function PhotoAttendanceSystem() {
 
     if (hasCheckedInToday) {
       alert("❌ วันนี้คุณเช็คชื่อไปแล้วครับ! (สามารถเช็คได้วันละ 1 ครั้ง)");
-      return; // หยุดทำงานทันที
+      return; 
     }
 
     const newRecord = {
@@ -607,10 +606,10 @@ export default function PhotoAttendanceSystem() {
 
     try {
       
-      // 1. บันทึกลง Firebase
+      
       await addDoc(collection(db, "attendance"), newRecord);
 
-      // 2. ส่งข้อมูลไป Google Sheets
+     
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
