@@ -111,7 +111,7 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
-  // --- State สำหรับแก้ไขข้อมูล ---
+  // --- State สำหรับแก้ไขข้อมูล (ปรับปรุงให้มี Level และ Room) ---
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
@@ -139,7 +139,7 @@ export default function PhotoAttendanceSystem() {
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   
-  // --- State Register ---
+  // --- State Register ปรับปรุงให้มี Level และ Room ---
   const [registerForm, setRegisterForm] = useState({
     username: "",
     password: "",
@@ -147,8 +147,8 @@ export default function PhotoAttendanceSystem() {
     fullName: "",
     role: "student",
     studentNumber: "",
-    level: "", // ระดับชั้น
-    room: "",  // ห้อง (ว่าง = ห้องเดียว)
+    level: "", // ระดับชั้น (เช่น ปวช.1)
+    room: "",  // ห้อง (ว่าง, 1, 2)
     grade: "", // ค่ารวม
     department: "คอมพิวเตอร์",
     secretCode: "",
@@ -296,16 +296,14 @@ export default function PhotoAttendanceSystem() {
     setEditingStudent(student);
     
     let currentLevel = "";
-    let currentRoom = ""; // ถ้าเป็นค่าว่าง "" แปลว่า "ห้องเดียว"
+    let currentRoom = ""; // ค่าเริ่มต้น "" = ห้องเดียว
 
     if (student.grade) {
-        // เช็คว่ามี / หรือไม่ ถ้ามีแสดงว่าเป็นห้อง 1 หรือ 2
         const parts = student.grade.split('/');
         if (parts.length === 2) {
             currentLevel = parts[0];
             currentRoom = parts[1]; 
         } else {
-            // ถ้าไม่มี / แสดงว่าเป็นห้องเดียว (เช่น "ปวช.1")
             currentLevel = student.grade; 
             currentRoom = ""; 
         }
@@ -320,15 +318,14 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
-  // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade แบบ 3 ตัวเลือก) ---
+  // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade) ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
-    // บังคับแค่ Level, ส่วน Room เป็น Optional (ถ้าเป็น "" คือห้องเดียว)
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
 
-    // 🟢 Logic รวมร่าง: ถ้า room มีค่า (1 หรือ 2) ให้เติม /x ถ้าไม่มี ให้ใช้ชื่อชั้นเพียวๆ
+    // 🟢 Logic รวมร่าง: ถ้าเลือกห้อง (1,2) ให้เติม /x ถ้าเลือก "ห้องเดียว" ("") ให้ใช้ชื่อชั้นเพียวๆ
     const newGrade = (editForm.room && editForm.room !== "") 
         ? `${editForm.level}/${editForm.room}` 
         : editForm.level;
@@ -342,9 +339,9 @@ export default function PhotoAttendanceSystem() {
           grade: newGrade,
           department: editForm.department
         });
-        alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅ ระบบจะรีโหลดเพื่ออัปเดตข้อมูล...");
+        alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅");
         setEditingStudent(null); 
-        window.location.reload(); 
+        // ไม่ต้อง reload หน้าก็ได้ เพราะ onSnapshot จะทำงาน
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
@@ -401,7 +398,7 @@ export default function PhotoAttendanceSystem() {
                 department: leave.department,
                 photo: "https://via.placeholder.com/150?text=LEAVE", 
                 checkInTime: new Date().toISOString(),
-                status: "leave", 
+                status: "leave",
                 location: { lat: 0, lng: 0 },
                 distance: 0,
                 isOffCampus: false,
@@ -988,7 +985,7 @@ export default function PhotoAttendanceSystem() {
                   </select>
                 </div>
 
-                {/* 🟢 2. เลือก Room (มีตัวเลือก "ห้องเดียว/ไม่ระบุ") */}
+                {/* 🟢 2. เลือก Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
                   <select value={registerForm.room} onChange={(e) => setRegisterForm({ ...registerForm, room: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -1391,7 +1388,6 @@ export default function PhotoAttendanceSystem() {
 
   // Teacher Page
   if (page === "teacher") {
-    // หา Grade ทั้งหมดจากข้อมูลที่มี
     const gradesFromRecords = attendanceRecords.map((r) => r.grade);
     const gradesFromUsers = users.filter((u) => u.role === "student").map((u) => u.grade);
     const uniqueGrades = Array.from(new Set([...gradesFromRecords, ...gradesFromUsers])).filter((g) => g).sort();
@@ -1518,8 +1514,7 @@ export default function PhotoAttendanceSystem() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
-                
-                {/* 🟢 1. แก้ไข Level */}
+                {/* 🟢 แก้ไขตรงนี้: แยก Grade เป็น Level และ Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
                   <select 
@@ -1534,8 +1529,6 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
-
-                {/* 🟢 2. แก้ไข Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
                   <select 
@@ -1543,7 +1536,7 @@ export default function PhotoAttendanceSystem() {
                     onChange={(e) => setEditForm({...editForm, room: e.target.value})} 
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">ห้องเดียว (ไม่ระบุ)</option>
+                    <option value="">ห้องเดียว</option>
                     <option value="1">ห้อง 1</option>
                     <option value="2">ห้อง 2</option>
                   </select>
