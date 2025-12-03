@@ -27,7 +27,11 @@ import {
   FileQuestion,
   CheckCircle,
   XCircle,
-  User 
+  User,
+  Dices, // 🎲 ไอคอนสุ่ม
+  LayoutGrid, // 👥 ไอคอนจัดกลุ่ม
+  Download, // ⬇️ ไอคอนติดตั้ง PWA
+  Volume2 // 🔊 ไอคอนเสียง
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -53,6 +57,9 @@ const COLLEGE_LNG = 100.32044313706368;
 const MAX_DISTANCE_METERS = 50;
 
 const TEACHER_SECRET_CODE = "3399";
+
+// 🔊 Sound Effect File (ใช้เสียงฟรีจาก URL)
+const SUCCESS_SOUND_URL = "https://www.soundjay.com/buttons/sounds/button-3.mp3";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD2mam9j5GCa90BF5rLnrRelJi7tJ8lTrE",
@@ -120,7 +127,17 @@ export default function PhotoAttendanceSystem() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
   const [leaves, setLeaves] = useState<any[]>([]);
-  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false); // กันเบิ้ล
+  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false);
+
+  // --- State สำหรับฟีเจอร์ใหม่ ---
+  const [showRandomModal, setShowRandomModal] = useState(false); // 🎲
+  const [randomResult, setRandomResult] = useState<string | null>(null);
+  
+  const [showGroupModal, setShowGroupModal] = useState(false); // 👥
+  const [groupSize, setGroupSize] = useState<number>(5);
+  const [groups, setGroups] = useState<any[][]>([]);
+  
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null); // 📱 PWA Install Prompt
 
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
 
@@ -176,6 +193,14 @@ export default function PhotoAttendanceSystem() {
   // Loading State
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // 📱 PWA: Listen for install prompt
+  useEffect(() => {
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+  }, []);
+
   useEffect(() => {
     if (!auth) return;
     signInAnonymously(auth).catch((error) =>
@@ -189,8 +214,6 @@ export default function PhotoAttendanceSystem() {
 
   useEffect(() => {
     if (!firebaseUser || !db) return;
-    
-    
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -200,8 +223,6 @@ export default function PhotoAttendanceSystem() {
       setUsers(loadedUsers);
       setIsDataLoaded(true); 
     });
-
-    
     const attendanceQuery = query(collection(db, "attendance"));
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
       const loadedRecords = snapshot.docs.map((doc) => {
@@ -220,7 +241,6 @@ export default function PhotoAttendanceSystem() {
       setAttendanceRecords(loadedRecords);
     });
 
-    
     const leavesQuery = query(collection(db, "leaves"));
     const unsubLeaves = onSnapshot(leavesQuery, (snapshot) => {
       const loadedLeaves = snapshot.docs.map((doc) => ({
@@ -258,6 +278,45 @@ export default function PhotoAttendanceSystem() {
     };
   }, [stream]);
 
+  // 🎲 Function: สุ่มชื่อนักเรียน
+  const handleRandomStudent = () => {
+    const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
+    if (studentsInGrade.length > 0) {
+      const randomIndex = Math.floor(Math.random() * studentsInGrade.length);
+      setRandomResult(studentsInGrade[randomIndex].fullName);
+    } else {
+      setRandomResult("ไม่มีนักเรียนในห้องนี้");
+    }
+  };
+
+  // 👥 Function: จัดกลุ่มนักเรียน
+  const handleGenerateGroups = () => {
+    const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
+    if (studentsInGrade.length === 0) return;
+
+    // Shuffle (สับไพ่)
+    const shuffled = [...studentsInGrade].sort(() => 0.5 - Math.random());
+    
+    const newGroups = [];
+    for (let i = 0; i < shuffled.length; i += groupSize) {
+        newGroups.push(shuffled.slice(i, i + groupSize));
+    }
+    setGroups(newGroups);
+  };
+
+  // 📱 Function: Install PWA
+  const handleInstallPWA = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the PWA prompt');
+        }
+        setDeferredPrompt(null);
+      });
+    }
+  };
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("th-TH", {
       hour: "2-digit",
@@ -293,7 +352,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  
+  // --- เปิด Modal แก้ไขข้อมูล ---
   const openEditModal = (student: any) => {
     setEditingStudent(student);
     
@@ -320,16 +379,14 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
-  
+  // --- บันทึกข้อมูลแก้ไข ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
 
-    const newGrade = (editForm.room && editForm.room !== "") 
-        ? `${editForm.level}/${editForm.room}` 
-        : editForm.level;
+    const newGrade = editForm.room && editForm.room !== "" ? `${editForm.level}/${editForm.room}` : editForm.level;
 
     if (confirm(`ยืนยันการแก้ไขข้อมูลของ ${editingStudent.fullName} หรือไม่?`)) {
       try {
@@ -348,7 +405,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-
+  // --- ฟังก์ชันขอลาหยุด ---
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
     if (isSubmittingLeave) return;
@@ -363,7 +420,7 @@ export default function PhotoAttendanceSystem() {
         grade: currentUser.grade,
         department: currentUser.department,
         reason: leaveReason,
-        status: "pending",
+        status: "pending", 
         createdAt: new Date().toISOString(),
         date: new Date().toISOString().split('T')[0] 
       });
@@ -661,6 +718,10 @@ export default function PhotoAttendanceSystem() {
         body: JSON.stringify(payload),
       });
 
+      // 🔊 Sound Effect
+      const audio = new Audio(SUCCESS_SOUND_URL);
+      audio.play();
+
       setCapturedPhoto(null);
       alert("เช็คชื่อสำเร็จ! บันทึกลงฐานข้อมูลและส่งแจ้งเตือนแล้ว");
     } catch (err: any) {
@@ -808,6 +869,15 @@ export default function PhotoAttendanceSystem() {
             <h2 className="text-xl font-bold text-gray-700">
               เข้าสู่ระบบ (วิทยาลัยเทคนิคนนทบุรี)
             </h2>
+            {/* PWA Install Button */}
+            {deferredPrompt && (
+              <button 
+                onClick={handleInstallPWA} 
+                className="mt-2 text-xs text-indigo-500 flex items-center justify-center gap-1 hover:underline"
+              >
+                <Download size={12} /> ติดตั้งแอปบนมือถือ
+              </button>
+            )}
           </div>
           <div className="space-y-4">
             <div>
@@ -1138,7 +1208,6 @@ export default function PhotoAttendanceSystem() {
                     เปิดกล้อง
                   </button>
 
-                  {/* ปุ่มขอลาหยุด */}
                   <button onClick={() => setShowLeaveModal(true)} className="px-8 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2">
                      <FileQuestion size={20} /> ขอลาหยุด
                   </button>
@@ -1288,7 +1357,6 @@ export default function PhotoAttendanceSystem() {
                     }`}
                   >
                     <div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4">
-                      {/* 🟢 2. */}
                       {record.status === "leave" ? (
                         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center">
                           <User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" />
@@ -1303,7 +1371,6 @@ export default function PhotoAttendanceSystem() {
                           <div className={`text-[10px] sm:text-xs mt-1 flex items-center gap-1 ${record.isOffCampus ? "text-red-500" : "text-green-600"}`}>
                               <MapPin size={10} />{record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} ({Math.round(record.distance || 0)} ม.)
                           </div>
-                          {/* 🟢 */}
                           {record.status === "leave" && record.leaveReason && (
                              <div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
                                 <strong>เหตุผล:</strong> {record.leaveReason}
@@ -1313,7 +1380,6 @@ export default function PhotoAttendanceSystem() {
                       <div className="text-right flex flex-col items-end shrink-0"><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold mb-1 whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div>{expandedRecordId === record.id ? (<ChevronUp size={16} className="text-gray-400" />) : (<ChevronDown size={16} className="text-gray-400" />)}</div>
                     </div>
                     {expandedRecordId === record.id && (<div className="bg-white p-4 border-t border-gray-100 space-y-3 animate-fade-in"><div className="flex justify-center">
-                        {/* 🟢 */}
                         {record.status === "leave" ? (
                            <div className="flex flex-col items-center justify-center py-4 bg-blue-50 rounded-lg w-full">
                               <User className="text-blue-300 w-16 h-16 mb-2" />
@@ -1328,7 +1394,7 @@ export default function PhotoAttendanceSystem() {
             </div>
           </div>
 
-          {/* Modal  (Student) */}
+          {/* Modal ขอลาหยุด (Student) */}
           {showLeaveModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -1340,7 +1406,6 @@ export default function PhotoAttendanceSystem() {
                    value={leaveReason}
                    onChange={(e) => setLeaveReason(e.target.value)}
                 />
-                {/* 🟢  */}
                 <div className="flex gap-3">
                   <button onClick={() => setShowLeaveModal(false)} className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" disabled={isSubmittingLeave}>ยกเลิก</button>
                   <button 
@@ -1376,6 +1441,16 @@ export default function PhotoAttendanceSystem() {
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
               <div className="text-center sm:text-left"><h1 className="text-2xl sm:text-3xl font-bold text-indigo-900">ระบบจัดการเช็คชื่อ</h1><p className="text-gray-600 mt-1">สำหรับอาจารย์: {currentUser?.fullName}</p></div>
               <div className="flex flex-wrap justify-center gap-2">
+                {/* 🎲 ปุ่มสุ่ม */}
+                <button onClick={() => setShowRandomModal(true)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm sm:text-base">
+                   <Dices size={16} /> สุ่มชื่อ
+                </button>
+                
+                {/* 👥 ปุ่มจัดกลุ่ม */}
+                <button onClick={() => setShowGroupModal(true)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm sm:text-base">
+                   <LayoutGrid size={16} /> จัดกลุ่ม
+                </button>
+                
                 <button onClick={handleSyncData} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm sm:text-base"><RefreshCw size={16} /> ซิงค์ข้อมูลวันนี้</button>
                 <button onClick={() => setManageMode(!manageMode)} className={`flex items-center gap-2 px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors text-sm sm:text-base ${manageMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}>{manageMode ? <Users size={16} /> : <Settings size={16} />}{manageMode ? "กลับไปเช็คชื่อ" : "จัดการนักเรียน"}</button>
                 <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm sm:text-base"><LogOut size={16} /> ออกจากระบบ</button>
@@ -1389,7 +1464,6 @@ export default function PhotoAttendanceSystem() {
                   <div className="flex items-center gap-2 w-full sm:w-auto"><div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border"><Calendar size={16} className="text-gray-500" /><span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span><input type="month" value={historyFilterMonth} onChange={(e) => setHistoryFilterMonth(e.target.value)} className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" /></div><button onClick={() => exportToCSV(viewingHistoryStudent)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" title="Export to CSV"><FileSpreadsheet size={16} /> Export</button><button onClick={() => setViewingHistoryStudent(null)} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={20} className="text-gray-500" /></button></div>
                 </div>
                 <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
-                  {/* 🟢 */}
                   {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}
                 </div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
               </div>
@@ -1403,7 +1477,6 @@ export default function PhotoAttendanceSystem() {
                   <div className="flex gap-2 ml-auto md:ml-0 w-full md:w-auto justify-end">
                     <button onClick={() => { setViewingHistoryStudent(student); setHistoryFilterMonth(getYearMonth(new Date())); }} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm font-medium"><FileText size={14} /> ดูประวัติ</button>
                     
-                    {/*  */}
                     <button 
                       onClick={() => openEditModal(student)} 
                       className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"
@@ -1424,7 +1497,7 @@ export default function PhotoAttendanceSystem() {
                 {activeGrade && (<div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6"><div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2"><h2 className="text-lg sm:text-xl font-bold text-indigo-900 flex items-center gap-2"><Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด ({activeGrade})</h2><div className="text-xs sm:text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">วันที่: {new Date(filterDate).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", })}</div></div><div className="grid grid-cols-3 gap-3 sm:gap-6"><div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-blue-500"><div className="text-xl sm:text-3xl font-bold text-blue-900 mb-1">{gradeRecs.length}</div><div className="text-xs sm:text-sm font-medium text-blue-600">มาเรียน</div></div><div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-green-500"><div className="text-xl sm:text-3xl font-bold text-green-900 mb-1">{gradePresent}</div><div className="text-xs sm:text-sm font-medium text-green-600">มาตรงเวลา</div></div><div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-orange-500"><div className="text-xl sm:text-3xl font-bold text-orange-900 mb-1">{gradeLate}</div><div className="text-xs sm:text-sm font-medium text-orange-600">มาสาย</div></div></div></div>)}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-gray-50 p-4 rounded-lg"><div className="flex items-center gap-2"><Settings className="w-5 h-5 text-gray-600" /><label className="text-sm font-medium text-gray-700 whitespace-nowrap">กำหนดเวลาสาย:</label></div><div className="flex w-full sm:w-auto items-center justify-between gap-4"><input type="time" value={lateTime} onChange={(e) => setLateTime(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto" /><div className="ml-auto sm:ml-0 flex items-center gap-2 text-base sm:text-lg font-semibold text-indigo-700"><Clock className="w-5 h-5" /> {formatTime(currentTime)}</div></div></div>
                 
-                {/* เมนูใหม่: รายการขอลาหยุด */}
+                {/* รายการขอลาหยุด */}
                 <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6 border border-yellow-200">
                    <h2 className="text-lg sm:text-xl font-bold text-yellow-800 mb-4 flex items-center gap-2">
                      <FileQuestion className="w-5 h-5" /> รายการขอลาหยุด
@@ -1455,7 +1528,6 @@ export default function PhotoAttendanceSystem() {
                 <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg"><Users className="w-4 h-4 sm:w-5 sm:h-5" /></span> รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})</h2>
                   {!activeGrade ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base">กรุณาเลือกชั้นเรียนด้านบน</div>) : gradeRecs.length === 0 ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base"><Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-30" /> ไม่มีการเช็คชื่อในวันที่เลือก</div>) : (<div className="space-y-3">{gradeRecs.sort((a, b) => a.studentNumber - b.studentNumber).map((record, index) => (<div key={record.id} onClick={() => toggleExpandRecord(record.id)} className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4"><div className="text-xl sm:text-2xl font-bold text-gray-400 w-6 sm:w-8 text-center shrink-0">{record.studentNumber}</div>
-                    {/* 🟢 4. ส่วนแสดงรูปในหน้าหลัก (List View) */}
                     {record.status === "leave" ? (
                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center">
                            <User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" />
@@ -1466,7 +1538,6 @@ export default function PhotoAttendanceSystem() {
                     
                     <div className="flex-1 min-w-0"><div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5 sm:mb-1">{record.studentName}</div><div className="flex flex-wrap items-center gap-1 sm:gap-2"><span className="bg-white border px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[10px] sm:text-xs text-gray-500 font-medium whitespace-nowrap">{record.grade}</span><span className="text-gray-500 text-xs sm:text-sm truncate">{formatDate(record.checkInTime)}</span></div>
                     
-                    {/* 🟢  */}
                     {record.status === "leave" && record.leaveReason && (
                          <div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
                             <strong>เหตุผล:</strong> {record.leaveReason}
@@ -1474,7 +1545,6 @@ export default function PhotoAttendanceSystem() {
                     )}
 
                   </div><div className="text-right shrink-0"><div className={`text-lg sm:text-2xl font-bold mb-0.5 sm:mb-1 ${record.status === "late" ? "text-orange-600" : (record.status === "leave" ? "text-blue-600" : "text-green-600")}`}>{formatTime(record.checkInTime)}</div><div className={`inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทันเวลา")}</div></div><div className="pl-1 sm:pl-2 text-gray-400 shrink-0">{expandedRecordId === record.id ? (<ChevronUp size={16} />) : (<ChevronDown size={16} />)}</div></div>{expandedRecordId === record.id && (<div className="bg-white border-t border-gray-100 p-4 animate-fade-in"><div className="flex flex-col md:flex-row gap-4"><div className="flex-1"><p className="text-sm font-bold text-gray-500 mb-2">รูปถ่ายยืนยัน:</p>
-                    {/* 🟢 */}
                     {record.status === "leave" ? (
                          <div className="w-full h-48 bg-blue-50 rounded-lg flex flex-col items-center justify-center border border-blue-100">
                             <User className="text-blue-300 w-16 h-16 mb-2" />
@@ -1492,7 +1562,7 @@ export default function PhotoAttendanceSystem() {
           </div>
         </div>
 
-        {/* Modal  */}
+        {/* Modal สำหรับแก้ไขข้อมูล (Popup) */}
         {editingStudent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -1520,7 +1590,6 @@ export default function PhotoAttendanceSystem() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
-                {/* 🟢 m */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
                   <select 
@@ -1542,7 +1611,7 @@ export default function PhotoAttendanceSystem() {
                     onChange={(e) => setEditForm({...editForm, room: e.target.value})} 
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">ไม่ระยุ</option> 
+                    <option value="">ไม่ระบุ</option>
                     <option value="1">ห้อง 1</option>
                     <option value="2">ห้อง 2</option>
                   </select>
@@ -1576,6 +1645,117 @@ export default function PhotoAttendanceSystem() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* 🎲 Random Modal */}
+        {showRandomModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+              <button onClick={() => { setShowRandomModal(false); setRandomResult(null); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"><X size={24} /></button>
+              
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                  <Dices className="w-10 h-10 text-purple-600 animate-bounce" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800">สุ่มผู้โชคดี</h3>
+                <p className="text-gray-500 text-sm mt-1">จากรายชื่อห้อง {selectedGrade}</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-6 min-h-[120px] flex items-center justify-center mb-6 border-2 border-dashed border-gray-200 relative group">
+                {randomResult ? (
+                  <div className="text-center animate-pop-in">
+                    <span className="text-4xl">🎉</span>
+                    <p className="text-xl font-bold text-purple-700 mt-2">{randomResult}</p>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm group-hover:text-purple-400 transition-colors">กดปุ่มด้านล่างเพื่อสุ่ม...</p>
+                )}
+              </div>
+
+              <button 
+                onClick={handleRandomStudent} 
+                className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={20} className={randomResult ? "" : "animate-spin-slow"} /> สุ่มเลย!
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 👥 Group Modal */}
+        {showGroupModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-red-400"></div>
+                    
+                    {/* Header */}
+                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white z-10">
+                        <div>
+                            <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                                <LayoutGrid className="text-orange-500" /> จัดกลุ่มอัตโนมัติ
+                            </h3>
+                            <p className="text-gray-500 text-sm mt-1">ห้อง {selectedGrade} • ทั้งหมด {users.filter(u => u.role === "student" && u.grade === selectedGrade).length} คน</p>
+                        </div>
+                        <button onClick={() => { setShowGroupModal(false); setGroups([]); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} className="text-gray-400" /></button>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="p-6 bg-orange-50 border-b border-orange-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <label className="text-sm font-bold text-orange-800 whitespace-nowrap">จำนวนคนต่อกลุ่ม:</label>
+                            <div className="flex items-center bg-white rounded-lg shadow-sm border border-orange-200 overflow-hidden">
+                                <button onClick={() => setGroupSize(Math.max(2, groupSize - 1))} className="px-3 py-2 hover:bg-orange-100 text-orange-600 font-bold border-r">-</button>
+                                <input 
+                                    type="number" 
+                                    min="2" 
+                                    value={groupSize} 
+                                    onChange={(e) => setGroupSize(parseInt(e.target.value) || 2)}
+                                    className="w-12 text-center outline-none text-gray-700 font-bold"
+                                />
+                                <button onClick={() => setGroupSize(groupSize + 1)} className="px-3 py-2 hover:bg-orange-100 text-orange-600 font-bold border-l">+</button>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={handleGenerateGroups}
+                            className="w-full sm:w-auto px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold shadow-md transition-all flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw size={18} /> สุ่มจัดกลุ่มใหม่
+                        </button>
+                    </div>
+
+                    {/* Content (Scrollable) */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                        {groups.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {groups.map((group, idx) => (
+                                    <div key={idx} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
+                                            <h4 className="font-bold text-gray-800 text-lg">กลุ่มที่ {idx + 1}</h4>
+                                            <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full font-medium">{group.length} คน</span>
+                                        </div>
+                                        <ul className="space-y-2">
+                                            {group.map((student: any, sIdx: number) => (
+                                                <li key={sIdx} className="flex items-center gap-2 text-sm text-gray-600">
+                                                    <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-600 shrink-0">
+                                                        {sIdx + 1}
+                                                    </div>
+                                                    <span className="truncate">{student.fullName}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+                                <LayoutGrid size={64} className="opacity-20" />
+                                <p>กดปุ่ม "สุ่มจัดกลุ่มใหม่" เพื่อเริ่มใช้งาน</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         )}
 
       </div>
