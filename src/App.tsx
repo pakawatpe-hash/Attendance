@@ -27,7 +27,7 @@ import {
   FileQuestion,
   CheckCircle,
   XCircle,
-  User // 🟢 เพิ่มไอคอน User
+  User // 🟢 ใช้ไอคอน User สำหรับคนลา
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -112,7 +112,7 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
-  // --- State สำหรับแก้ไขข้อมูล (ตัด grade ออก ใช้ level/room แทน) ---
+  // --- State สำหรับแก้ไขข้อมูล (ปรับปรุงให้มี Level และ Room) ---
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
@@ -148,8 +148,8 @@ export default function PhotoAttendanceSystem() {
     fullName: "",
     role: "student",
     studentNumber: "",
-    level: "", // ระดับชั้น
-    room: "",  // ห้อง
+    level: "", // ระดับชั้น (เช่น ปวช.1)
+    room: "",  // ห้อง (ว่าง, 1, 2)
     grade: "", // ค่ารวม
     department: "คอมพิวเตอร์",
     secretCode: "",
@@ -322,7 +322,6 @@ export default function PhotoAttendanceSystem() {
   // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade) ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
-    // บังคับแค่ Level, ส่วน Room เป็น Optional (ถ้าเป็น "" คือห้องเดียว)
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
@@ -398,7 +397,7 @@ export default function PhotoAttendanceSystem() {
                 studentNumber: leave.studentNumber,
                 grade: leave.grade,
                 department: leave.department,
-                photo: "", // 🟢 ไม่ใช้รูป URL แต่ใช้ค่าว่าง (เพราะจะโชว์ไอคอนแทน)
+                photo: "", // 🟢 ไม่ใช้รูป URL
                 checkInTime: new Date().toISOString(),
                 status: "leave", 
                 location: { lat: 0, lng: 0 },
@@ -459,7 +458,7 @@ export default function PhotoAttendanceSystem() {
       );
     }
 
-    // ตรวจสอบ Level (Room ไม่ต้องบังคับ เพราะถ้าไม่เลือกคือห้องเดียว)
+    // ตรวจสอบ Level (Room ไม่ต้องบังคับ)
     if (
       registerForm.role === "student" &&
       (!registerForm.studentNumber || !registerForm.level)
@@ -477,8 +476,7 @@ export default function PhotoAttendanceSystem() {
 
     if (registerForm.role === "student") {
       newUser.studentNumber = registerForm.studentNumber;
-      
-      // 🟢 Logic รวมร่าง: ถ้าเลือกห้อง 1,2 ให้เติม /x ถ้าเลือก "ห้องเดียว" ("") ให้ใช้ชื่อชั้นเพียวๆ
+      // 🟢 Logic รวมร่าง
       if (registerForm.room && registerForm.room !== "") {
         newUser.grade = `${registerForm.level}/${registerForm.room}`;
       } else {
@@ -513,7 +511,7 @@ export default function PhotoAttendanceSystem() {
     setCapturedPhoto(null);
     setManageMode(false);
     setViewingHistoryStudent(null);
-    setEditingStudent(null); // Reset
+    setEditingStudent(null); 
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
@@ -617,10 +615,10 @@ export default function PhotoAttendanceSystem() {
       (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
 
     // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
-    const todayStr = now.toISOString().split('T')[0]; 
+    const todayStr = now.toISOString().split('T')[0]; 
     const hasCheckedInToday = attendanceRecords.some((record) => {
       if (record.username !== currentUser.username) return false;
-      const recordDate = record.checkInTime instanceof Date 
+      const recordDate = record.checkInTime instanceof Date 
         ? record.checkInTime.toISOString().split('T')[0]
         : new Date(record.checkInTime).toISOString().split('T')[0];
       
@@ -1362,6 +1360,7 @@ export default function PhotoAttendanceSystem() {
               </div>
             </div>
           )}
+
         </div>
       </div>
     );
@@ -1459,17 +1458,7 @@ export default function PhotoAttendanceSystem() {
 
                 <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg"><Users className="w-4 h-4 sm:w-5 sm:h-5" /></span> รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})</h2>
-                  {!activeGrade ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base">กรุณาเลือกชั้นเรียนด้านบน</div>) : gradeRecs.length === 0 ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base"><Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-30" /> ไม่มีการเช็คชื่อในวันที่เลือก</div>) : (<div className="space-y-3">{gradeRecs.sort((a, b) => a.studentNumber - b.studentNumber).map((record, index) => (<div key={record.id} onClick={() => toggleExpandRecord(record.id)} className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4"><div className="text-xl sm:text-2xl font-bold text-gray-400 w-6 sm:w-8 text-center shrink-0">{record.studentNumber}</div><img src={record.photo} alt={record.studentName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white shadow-sm shrink-0" /><div className="flex-1 min-w-0"><div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5 sm:mb-1">{record.studentName}</div><div className="flex flex-wrap items-center gap-1 sm:gap-2"><span className="bg-white border px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[10px] sm:text-xs text-gray-500 font-medium whitespace-nowrap">{record.grade}</span><span className="text-gray-500 text-xs sm:text-sm truncate">{formatDate(record.checkInTime)}</span></div></div><div className="text-right shrink-0"><div className={`text-lg sm:text-2xl font-bold mb-0.5 sm:mb-1 ${record.status === "late" ? "text-orange-600" : (record.status === "leave" ? "text-blue-600" : "text-green-600")}`}>{formatTime(record.checkInTime)}</div><div className={`inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทันเวลา")}</div></div><div className="pl-1 sm:pl-2 text-gray-400 shrink-0">{expandedRecordId === record.id ? (<ChevronUp size={16} />) : (<ChevronDown size={16} />)}</div></div>{expandedRecordId === record.id && (<div className="bg-white border-t border-gray-100 p-4 animate-fade-in"><div className="flex flex-col md:flex-row gap-4"><div className="flex-1"><p className="text-sm font-bold text-gray-500 mb-2">รูปถ่ายยืนยัน:</p>
-                    {/* 🟢 ในส่วนขยาย ถ้าเป็น leave ให้โชว์ไอคอนใหญ่แทนรูป */}
-                    {record.status === "leave" ? (
-                       <div className="w-full h-48 bg-blue-50 rounded-lg flex flex-col items-center justify-center border border-blue-100">
-                          <User className="text-blue-300 w-16 h-16 mb-2" />
-                          <p className="text-blue-500 font-medium">ลากิจ/ลาป่วย</p>
-                       </div>
-                    ) : (
-                       <img src={record.photo} className="w-full h-48 object-contain bg-black/5 rounded-lg" />
-                    )}
-                  </div><div className="flex-1 flex flex-col justify-center items-center p-4 bg-gray-50 rounded-lg border border-gray-100"><div className={`flex flex-col items-center gap-2 ${record.isOffCampus ? "text-red-600" : "text-green-600"}`}>{record.isOffCampus ? (<AlertTriangle size={32} />) : (<MapPin size={32} />)}<span className="font-bold text-lg text-center">{record.isOffCampus ? "อยู่นอกพื้นที่" : "อยู่ในพื้นที่วิทยาลัย"}</span><span className="text-sm text-gray-500 text-center">ระยะห่าง: {Math.round(record.distance || 0)} เมตร</span></div><button onClick={(e) => { e.stopPropagation(); deleteRecord(record.id); }} className="mt-6 w-full flex items-center justify-center gap-2 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition border border-red-100 text-sm sm:text-base"><Trash2 size={16} /> ลบรายการนี้</button></div></div></div>)}</div>))}</div>
+                  {!activeGrade ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base">กรุณาเลือกชั้นเรียนด้านบน</div>) : gradeRecs.length === 0 ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base"><Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-30" /> ไม่มีการเช็คชื่อในวันที่เลือก</div>) : (<div className="space-y-3">{gradeRecs.sort((a, b) => a.studentNumber - b.studentNumber).map((record, index) => (<div key={record.id} onClick={() => toggleExpandRecord(record.id)} className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4"><div className="text-xl sm:text-2xl font-bold text-gray-400 w-6 sm:w-8 text-center shrink-0">{record.studentNumber}</div><img src={record.photo} alt={record.studentName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white shadow-sm shrink-0" /><div className="flex-1 min-w-0"><div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5 sm:mb-1">{record.studentName}</div><div className="flex flex-wrap items-center gap-1 sm:gap-2"><span className="bg-white border px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[10px] sm:text-xs text-gray-500 font-medium whitespace-nowrap">{record.grade}</span><span className="text-gray-500 text-xs sm:text-sm truncate">{formatDate(record.checkInTime)}</span></div></div><div className="text-right shrink-0"><div className={`text-lg sm:text-2xl font-bold mb-0.5 sm:mb-1 ${record.status === "late" ? "text-orange-600" : (record.status === "leave" ? "text-blue-600" : "text-green-600")}`}>{formatTime(record.checkInTime)}</div><div className={`inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทันเวลา")}</div></div><div className="pl-1 sm:pl-2 text-gray-400 shrink-0">{expandedRecordId === record.id ? (<ChevronUp size={16} />) : (<ChevronDown size={16} />)}</div></div>{expandedRecordId === record.id && (<div className="bg-white border-t border-gray-100 p-4 animate-fade-in"><div className="flex flex-col md:flex-row gap-4"><div className="flex-1"><p className="text-sm font-bold text-gray-500 mb-2">รูปถ่ายยืนยัน:</p><img src={record.photo} className="w-full h-48 object-contain bg-black/5 rounded-lg" /></div><div className="flex-1 flex flex-col justify-center items-center p-4 bg-gray-50 rounded-lg border border-gray-100"><div className={`flex flex-col items-center gap-2 ${record.isOffCampus ? "text-red-600" : "text-green-600"}`}>{record.isOffCampus ? (<AlertTriangle size={32} />) : (<MapPin size={32} />)}<span className="font-bold text-lg text-center">{record.isOffCampus ? "อยู่นอกพื้นที่" : "อยู่ในพื้นที่วิทยาลัย"}</span><span className="text-sm text-gray-500 text-center">ระยะห่าง: {Math.round(record.distance || 0)} เมตร</span></div><button onClick={(e) => { e.stopPropagation(); deleteRecord(record.id); }} className="mt-6 w-full flex items-center justify-center gap-2 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition border border-red-100 text-sm sm:text-base"><Trash2 size={16} /> ลบรายการนี้</button></div></div></div>)}</div>))}</div>
                   )}
                 </div>
               </>
@@ -1505,8 +1494,7 @@ export default function PhotoAttendanceSystem() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
-                
-                {/* 🟢 1. แก้ไข Level */}
+                {/* 🟢 แก้ไขตรงนี้: แยก Grade เป็น Level และ Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
                   <select 
@@ -1521,8 +1509,6 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
-
-                {/* 🟢 2. แก้ไข Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
                   <select 
