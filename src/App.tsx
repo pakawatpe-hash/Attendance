@@ -111,9 +111,9 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
-
+  // --- State สำหรับแก้ไขข้อมูล (ปรับปรุงให้มี Level และ Room) ---
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", grade: "", department: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
@@ -137,6 +137,8 @@ export default function PhotoAttendanceSystem() {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+  
+  // --- State Register ปรับปรุงให้มี Level และ Room ---
   const [registerForm, setRegisterForm] = useState({
     username: "",
     password: "",
@@ -144,7 +146,9 @@ export default function PhotoAttendanceSystem() {
     fullName: "",
     role: "student",
     studentNumber: "",
-    grade: "",
+    level: "", // ระดับชั้น
+    room: "",  // ห้อง
+    grade: "", // เก็บค่ารวม (ไม่ต้องกรอกเอง)
     department: "คอมพิวเตอร์",
     secretCode: "",
   });
@@ -281,23 +285,42 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  
+  // --- เปิด Modal แก้ไขข้อมูล (แยก Grade เป็น Level และ Room) ---
   const openEditModal = (student: any) => {
     setEditingStudent(student);
+    
+    // แยกเกรดเดิม (เช่น "ปวช.1/2") ออกเป็น Level="ปวช.1" และ Room="2"
+    let currentLevel = "";
+    let currentRoom = "";
+    if (student.grade) {
+        const parts = student.grade.split('/');
+        if (parts.length === 2) {
+            currentLevel = parts[0];
+            currentRoom = parts[1];
+        } else {
+            currentLevel = student.grade; // กรณีข้อมูลเก่า
+            currentRoom = "1"; // ค่าเริ่มต้น
+        }
+    }
+
     setEditForm({
       fullName: student.fullName,
       studentNumber: student.studentNumber,
-      grade: student.grade,
+      level: currentLevel,
+      room: currentRoom,
       department: student.department
     });
   };
 
- 
+  // --- บันทึกข้อมูลแก้ไข (รวม Level+Room กลับเป็น Grade) ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
-    if (!editForm.fullName || !editForm.studentNumber || !editForm.grade) {
+    if (!editForm.fullName || !editForm.studentNumber || !editForm.level || !editForm.room) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
+
+    // รวมร่าง Level + Room
+    const newGrade = `${editForm.level}/${editForm.room}`;
 
     if (confirm(`ยืนยันการแก้ไขข้อมูลของ ${editingStudent.fullName} หรือไม่?`)) {
       try {
@@ -305,12 +328,11 @@ export default function PhotoAttendanceSystem() {
         await updateDoc(userRef, {
           fullName: editForm.fullName,
           studentNumber: editForm.studentNumber,
-          grade: editForm.grade,
+          grade: newGrade,
           department: editForm.department
         });
         alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅ ระบบจะรีโหลดเพื่ออัปเดตข้อมูล...");
         setEditingStudent(null); 
-        // รีโหลดหน้าเว็บเพื่อความชัวร์ว่าข้อมูลใหม่มาแน่
         window.location.reload();
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
@@ -346,11 +368,12 @@ export default function PhotoAttendanceSystem() {
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
 
     try {
-  
+      // 1. อัปเดตสถานะในตาราง leaves
       await updateDoc(doc(db, "leaves", leave.id), {
         status: isApproved ? "approved" : "rejected"
       });
 
+      // 2. ถ้าอนุมัติ -> ให้ลงบันทึกการเข้าเรียนเป็น "Leave" ทันที
       if (isApproved) {
         const todayStr = leave.date; 
         const hasCheckedIn = attendanceRecords.some(r => {
@@ -367,7 +390,7 @@ export default function PhotoAttendanceSystem() {
                 department: leave.department,
                 photo: "https://via.placeholder.com/150?text=LEAVE", 
                 checkInTime: new Date().toISOString(),
-                status: "leave",
+                status: "leave", // สถานะพิเศษ "ลา"
                 location: { lat: 0, lng: 0 },
                 distance: 0,
                 isOffCampus: false,
@@ -427,9 +450,9 @@ export default function PhotoAttendanceSystem() {
 
     if (
       registerForm.role === "student" &&
-      (!registerForm.studentNumber || !registerForm.grade)
+      (!registerForm.studentNumber || !registerForm.level || !registerForm.room)
     )
-      return alert("กรอกข้อมูลนักเรียนให้ครบ");
+      return alert("กรุณากรอกข้อมูลนักเรียนให้ครบ (รวมถึงระดับชั้นและห้อง)");
 
     const newUser: any = {
       username: registerForm.username,
@@ -442,7 +465,8 @@ export default function PhotoAttendanceSystem() {
 
     if (registerForm.role === "student") {
       newUser.studentNumber = registerForm.studentNumber;
-      newUser.grade = registerForm.grade;
+      // รวม Level และ Room เป็น Grade (เช่น "ปวช.1/1")
+      newUser.grade = `${registerForm.level}/${registerForm.room}`;
     }
 
     try {
@@ -456,6 +480,7 @@ export default function PhotoAttendanceSystem() {
         fullName: "",
         role: "student",
         studentNumber: "",
+        level: "", room: "", // Reset
         grade: "",
         department: "คอมพิวเตอร์",
         secretCode: "",
@@ -574,7 +599,7 @@ export default function PhotoAttendanceSystem() {
       now.getHours() > parseInt(h) ||
       (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
 
-   
+    // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
     const todayStr = now.toISOString().split('T')[0]; 
     const hasCheckedInToday = attendanceRecords.some((record) => {
       if (record.username !== currentUser.username) return false;
@@ -587,7 +612,7 @@ export default function PhotoAttendanceSystem() {
 
     if (hasCheckedInToday) {
       alert("❌ วันนี้คุณเช็คชื่อไปแล้วครับ! (สามารถเช็คได้วันละ 1 ครั้ง)");
-      return; 
+      return; // หยุดทำงานทันที
     }
 
     const newRecord = {
@@ -606,10 +631,10 @@ export default function PhotoAttendanceSystem() {
 
     try {
       
-      
+      // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
 
-     
+      // 2. ส่งข้อมูลไป Google Sheets (แบบ text/plain)
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -932,20 +957,11 @@ export default function PhotoAttendanceSystem() {
                     min="1"
                   />
                 </div>
+                
+                {/* 🟢 แยกช่องระดับชั้น */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ระดับชั้น
-                  </label>
-                  <select
-                    value={registerForm.grade}
-                    onChange={(e) =>
-                      setRegisterForm({
-                        ...registerForm,
-                        grade: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-2">ระดับชั้น</label>
+                  <select value={registerForm.level} onChange={(e) => setRegisterForm({ ...registerForm, level: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     <option value="">เลือกระดับชั้น</option>
                     <option value="ปวช.1">ปวช.1</option>
                     <option value="ปวช.2">ปวช.2</option>
@@ -954,6 +970,17 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
+
+                {/* 🟢 แยกช่องห้อง */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
+                  <select value={registerForm.room} onChange={(e) => setRegisterForm({ ...registerForm, room: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="">เลือกห้อง</option>
+                    <option value="1">ห้อง 1</option>
+                    <option value="2">ห้อง 2</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     แผนก
@@ -1804,6 +1831,20 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
+                
+                {/* 🟢 เพิ่มช่องเลือกห้อง (Room) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
+                  <select 
+                    value={editForm.room} 
+                    onChange={(e) => setEditForm({...editForm, room: e.target.value})} 
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="1">ห้อง 1</option>
+                    <option value="2">ห้อง 2</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">แผนก</label>
                   <select 
