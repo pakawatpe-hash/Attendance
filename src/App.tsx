@@ -115,6 +115,7 @@ export default function PhotoAttendanceSystem() {
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
+  // --- State สำหรับระบบลา ---
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -146,9 +147,9 @@ export default function PhotoAttendanceSystem() {
     fullName: "",
     role: "student",
     studentNumber: "",
-    level: "", // ระดับชั้น
-    room: "",  // ห้อง
-    grade: "", // เก็บค่ารวม (ไม่ต้องกรอกเอง)
+    level: "", // ระดับชั้น (เช่น ปวช.1)
+    room: "",  // ห้อง (เช่น 1)
+    grade: "", // ค่ารวม (จะถูกสร้างอัตโนมัติ)
     department: "คอมพิวเตอร์",
     secretCode: "",
   });
@@ -186,6 +187,8 @@ export default function PhotoAttendanceSystem() {
 
   useEffect(() => {
     if (!firebaseUser || !db) return;
+    
+    // 1. ดึงข้อมูล Users
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -195,6 +198,8 @@ export default function PhotoAttendanceSystem() {
       setUsers(loadedUsers);
       setIsDataLoaded(true); 
     });
+
+    // 2. ดึงข้อมูล Attendance
     const attendanceQuery = query(collection(db, "attendance"));
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
       const loadedRecords = snapshot.docs.map((doc) => {
@@ -213,6 +218,7 @@ export default function PhotoAttendanceSystem() {
       setAttendanceRecords(loadedRecords);
     });
 
+    // 3. ดึงข้อมูล Leaves (ระบบลา)
     const leavesQuery = query(collection(db, "leaves"));
     const unsubLeaves = onSnapshot(leavesQuery, (snapshot) => {
       const loadedLeaves = snapshot.docs.map((doc) => ({
@@ -298,7 +304,7 @@ export default function PhotoAttendanceSystem() {
             currentLevel = parts[0];
             currentRoom = parts[1];
         } else {
-            currentLevel = student.grade; // กรณีข้อมูลเก่า
+            currentLevel = student.grade; // กรณีข้อมูลเก่าไม่มี /
             currentRoom = "1"; // ค่าเริ่มต้น
         }
     }
@@ -333,13 +339,14 @@ export default function PhotoAttendanceSystem() {
         });
         alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅ ระบบจะรีโหลดเพื่ออัปเดตข้อมูล...");
         setEditingStudent(null); 
-        window.location.reload();
+        window.location.reload(); // รีโหลดเพื่อให้เห็นข้อมูลห้องใหม่ทันที
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
     }
   };
 
+  // --- ฟังก์ชันขอลาหยุด ---
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
     
@@ -363,17 +370,16 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
+  // --- ฟังก์ชันอนุมัติการลา ---
   const handleLeaveAction = async (leave: any, isApproved: boolean) => {
     if (!db) return;
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
 
     try {
-      // 1. อัปเดตสถานะในตาราง leaves
       await updateDoc(doc(db, "leaves", leave.id), {
         status: isApproved ? "approved" : "rejected"
       });
 
-      // 2. ถ้าอนุมัติ -> ให้ลงบันทึกการเข้าเรียนเป็น "Leave" ทันที
       if (isApproved) {
         const todayStr = leave.date; 
         const hasCheckedIn = attendanceRecords.some(r => {
@@ -390,7 +396,7 @@ export default function PhotoAttendanceSystem() {
                 department: leave.department,
                 photo: "https://via.placeholder.com/150?text=LEAVE", 
                 checkInTime: new Date().toISOString(),
-                status: "leave", // สถานะพิเศษ "ลา"
+                status: "leave",
                 location: { lat: 0, lng: 0 },
                 distance: 0,
                 isOffCampus: false,
@@ -448,11 +454,12 @@ export default function PhotoAttendanceSystem() {
       );
     }
 
+    // ตรวจสอบ Level และ Room
     if (
       registerForm.role === "student" &&
       (!registerForm.studentNumber || !registerForm.level || !registerForm.room)
     )
-      return alert("กรุณากรอกข้อมูลนักเรียนให้ครบ (รวมถึงระดับชั้นและห้อง)");
+      return alert("กรุณาเลือก ระดับชั้น และ ห้อง ให้ครบถ้วน");
 
     const newUser: any = {
       username: registerForm.username,
@@ -465,7 +472,7 @@ export default function PhotoAttendanceSystem() {
 
     if (registerForm.role === "student") {
       newUser.studentNumber = registerForm.studentNumber;
-      // รวม Level และ Room เป็น Grade (เช่น "ปวช.1/1")
+      // รวมร่าง Level/Room เป็น Grade (เช่น "ปวช.1/1")
       newUser.grade = `${registerForm.level}/${registerForm.room}`;
     }
 
@@ -1538,7 +1545,6 @@ export default function PhotoAttendanceSystem() {
                 </div>
               </div>
             ) : manageMode ? (
-              // --- MODE: จัดการนักเรียน ---
               <div className="bg-white rounded-xl">
                 <div className="mb-6">
                   <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
