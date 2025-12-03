@@ -31,7 +31,8 @@ import {
   Dices,
   LayoutGrid,
   Download,
-  Share
+  Share,
+  Sparkles // 🟢 เพิ่มไอคอน Sparkles
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -60,6 +61,7 @@ const TEACHER_SECRET_CODE = "3399";
 
 // 🔊 Sound Effect File
 const SUCCESS_SOUND_URL = "https://www.soundjay.com/buttons/sounds/button-3.mp3";
+const ROLL_SOUND_URL = "https://www.soundjay.com/misc/sounds/magic-chime-01.mp3"; // เสียงตอนสุ่มเสร็จ
 
 const firebaseConfig = {
   apiKey: "AIzaSyD2mam9j5GCa90BF5rLnrRelJi7tJ8lTrE",
@@ -130,6 +132,7 @@ export default function PhotoAttendanceSystem() {
   // --- State สำหรับฟีเจอร์ใหม่ ---
   const [showRandomModal, setShowRandomModal] = useState(false);
   const [randomResult, setRandomResult] = useState<string | null>(null);
+  const [isRolling, setIsRolling] = useState(false); // 🟢 สถานะกำลังสุ่ม
   
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupSize, setGroupSize] = useState<number>(5);
@@ -291,14 +294,34 @@ export default function PhotoAttendanceSystem() {
     };
   }, [stream]);
 
+  // 🎲 Function: สุ่มชื่อนักเรียนพร้อม Animation
   const handleRandomStudent = () => {
     const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
-    if (studentsInGrade.length > 0) {
+    
+    if (studentsInGrade.length === 0) {
+      setRandomResult("ไม่มีนักเรียนในห้องนี้");
+      return;
+    }
+
+    setIsRolling(true);
+    setRandomResult(null);
+
+    let count = 0;
+    const maxCount = 20; // จำนวนครั้งที่จะสลับชื่อ
+    const interval = setInterval(() => {
+      // สุ่มชื่อโชว์รัวๆ
       const randomIndex = Math.floor(Math.random() * studentsInGrade.length);
       setRandomResult(studentsInGrade[randomIndex].fullName);
-    } else {
-      setRandomResult("ไม่มีนักเรียนในห้องนี้");
-    }
+      
+      count++;
+      if (count >= maxCount) {
+        clearInterval(interval);
+        setIsRolling(false);
+        // เล่นเสียงตอนจบ
+        const audio = new Audio(ROLL_SOUND_URL);
+        audio.play().catch(() => {}); // กัน error กรณี browser บล็อกเสียง
+      }
+    }, 100); // ความเร็วในการสลับ (ms)
   };
 
   const handleGenerateGroups = () => {
@@ -1628,7 +1651,7 @@ export default function PhotoAttendanceSystem() {
               <div className="bg-gray-50 rounded-xl p-6 min-h-[120px] flex items-center justify-center mb-6 border-2 border-dashed border-gray-200 relative group">
                 {randomResult ? (
                   <div className="text-center animate-pop-in">
-                    <span className="text-4xl"></span>
+                    <span className="text-4xl">🎉</span>
                     <p className="text-xl font-bold text-purple-700 mt-2">{randomResult}</p>
                   </div>
                 ) : (
@@ -1640,7 +1663,7 @@ export default function PhotoAttendanceSystem() {
                 onClick={handleRandomStudent} 
                 className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
               >
-                <RefreshCw size={20} className={randomResult ? "" : "animate-spin-slow"} /> สุ่มเลย!
+                <RefreshCw size={20} className={isRolling ? "animate-spin-slow" : ""} /> {isRolling ? "กำลังสุ่ม..." : "สุ่มเลย!"}
               </button>
             </div>
           </div>
