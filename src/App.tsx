@@ -27,7 +27,7 @@ import {
   FileQuestion,
   CheckCircle,
   XCircle,
-  User // 🟢 เพิ่มไอคอน User
+  User 
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -190,7 +190,7 @@ export default function PhotoAttendanceSystem() {
   useEffect(() => {
     if (!firebaseUser || !db) return;
     
-    // 1. ดึงข้อมูล Users
+    
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -201,7 +201,7 @@ export default function PhotoAttendanceSystem() {
       setIsDataLoaded(true); 
     });
 
-    // 2. ดึงข้อมูล Attendance
+    
     const attendanceQuery = query(collection(db, "attendance"));
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
       const loadedRecords = snapshot.docs.map((doc) => {
@@ -220,7 +220,7 @@ export default function PhotoAttendanceSystem() {
       setAttendanceRecords(loadedRecords);
     });
 
-    // 3. ดึงข้อมูล Leaves (ระบบลา)
+    
     const leavesQuery = query(collection(db, "leaves"));
     const unsubLeaves = onSnapshot(leavesQuery, (snapshot) => {
       const loadedLeaves = snapshot.docs.map((doc) => ({
@@ -293,12 +293,12 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- เปิด Modal แก้ไขข้อมูล (แยก Grade เป็น Level และ Room) ---
+  
   const openEditModal = (student: any) => {
     setEditingStudent(student);
     
     let currentLevel = "";
-    let currentRoom = ""; // ถ้าเป็นค่าว่าง "" แปลว่า "ห้องเดียว"
+    let currentRoom = ""; 
 
     if (student.grade) {
         const parts = student.grade.split('/');
@@ -320,7 +320,7 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
-  // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade) ---
+  
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
@@ -348,7 +348,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- ฟังก์ชันขอลาหยุด (เพิ่ม isSubmitting) ---
+
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
     if (isSubmittingLeave) return;
@@ -377,7 +377,6 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- ฟังก์ชันอนุมัติการลา ---
   const handleLeaveAction = async (leave: any, isApproved: boolean) => {
     if (!db) return;
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
@@ -1289,7 +1288,7 @@ export default function PhotoAttendanceSystem() {
                     }`}
                   >
                     <div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4">
-                      {/* 🟢 2. แสดงรูปโปรไฟล์ (คนลาใช้ไอคอนฟ้า) */}
+                      {/* 🟢 2. */}
                       {record.status === "leave" ? (
                         <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center">
                           <User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" />
@@ -1304,7 +1303,7 @@ export default function PhotoAttendanceSystem() {
                           <div className={`text-[10px] sm:text-xs mt-1 flex items-center gap-1 ${record.isOffCampus ? "text-red-500" : "text-green-600"}`}>
                               <MapPin size={10} />{record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} ({Math.round(record.distance || 0)} ม.)
                           </div>
-                          {/* 🟢 3. แสดงเหตุผลการลา */}
+                          {/* 🟢 */}
                           {record.status === "leave" && record.leaveReason && (
                              <div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
                                 <strong>เหตุผล:</strong> {record.leaveReason}
@@ -1314,7 +1313,7 @@ export default function PhotoAttendanceSystem() {
                       <div className="text-right flex flex-col items-end shrink-0"><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold mb-1 whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div>{expandedRecordId === record.id ? (<ChevronUp size={16} className="text-gray-400" />) : (<ChevronDown size={16} className="text-gray-400" />)}</div>
                     </div>
                     {expandedRecordId === record.id && (<div className="bg-white p-4 border-t border-gray-100 space-y-3 animate-fade-in"><div className="flex justify-center">
-                        {/* 🟢 ในส่วนขยาย ถ้าเป็น leave ให้โชว์ไอคอนใหญ่ */}
+                        {/* 🟢 */}
                         {record.status === "leave" ? (
                            <div className="flex flex-col items-center justify-center py-4 bg-blue-50 rounded-lg w-full">
                               <User className="text-blue-300 w-16 h-16 mb-2" />
@@ -1329,7 +1328,7 @@ export default function PhotoAttendanceSystem() {
             </div>
           </div>
 
-          {/* Modal ขอลาหยุด (Student) */}
+          {/* Modal  (Student) */}
           {showLeaveModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -1341,7 +1340,7 @@ export default function PhotoAttendanceSystem() {
                    value={leaveReason}
                    onChange={(e) => setLeaveReason(e.target.value)}
                 />
-                {/* 🟢 ป้องกันกดปุ่มรัว */}
+                {/* 🟢  */}
                 <div className="flex gap-3">
                   <button onClick={() => setShowLeaveModal(false)} className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" disabled={isSubmittingLeave}>ยกเลิก</button>
                   <button 
@@ -1390,7 +1389,7 @@ export default function PhotoAttendanceSystem() {
                   <div className="flex items-center gap-2 w-full sm:w-auto"><div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border"><Calendar size={16} className="text-gray-500" /><span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span><input type="month" value={historyFilterMonth} onChange={(e) => setHistoryFilterMonth(e.target.value)} className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" /></div><button onClick={() => exportToCSV(viewingHistoryStudent)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" title="Export to CSV"><FileSpreadsheet size={16} /> Export</button><button onClick={() => setViewingHistoryStudent(null)} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={20} className="text-gray-500" /></button></div>
                 </div>
                 <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
-                  {/* 🟢 แสดงเหตุผลการลาให้ครูเห็นด้วย */}
+                  {/* 🟢 */}
                   {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}
                 </div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
               </div>
@@ -1404,7 +1403,7 @@ export default function PhotoAttendanceSystem() {
                   <div className="flex gap-2 ml-auto md:ml-0 w-full md:w-auto justify-end">
                     <button onClick={() => { setViewingHistoryStudent(student); setHistoryFilterMonth(getYearMonth(new Date())); }} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm font-medium"><FileText size={14} /> ดูประวัติ</button>
                     
-                    {/* ปุ่มแก้ไขข้อมูล (เพิ่มตรงนี้) */}
+                    {/*  */}
                     <button 
                       onClick={() => openEditModal(student)} 
                       className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"
@@ -1467,7 +1466,7 @@ export default function PhotoAttendanceSystem() {
                     
                     <div className="flex-1 min-w-0"><div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5 sm:mb-1">{record.studentName}</div><div className="flex flex-wrap items-center gap-1 sm:gap-2"><span className="bg-white border px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[10px] sm:text-xs text-gray-500 font-medium whitespace-nowrap">{record.grade}</span><span className="text-gray-500 text-xs sm:text-sm truncate">{formatDate(record.checkInTime)}</span></div>
                     
-                    {/* 🟢 5. แสดงเหตุผลการลา (เพิ่มตรงนี้) */}
+                    {/* 🟢  */}
                     {record.status === "leave" && record.leaveReason && (
                          <div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
                             <strong>เหตุผล:</strong> {record.leaveReason}
@@ -1475,7 +1474,7 @@ export default function PhotoAttendanceSystem() {
                     )}
 
                   </div><div className="text-right shrink-0"><div className={`text-lg sm:text-2xl font-bold mb-0.5 sm:mb-1 ${record.status === "late" ? "text-orange-600" : (record.status === "leave" ? "text-blue-600" : "text-green-600")}`}>{formatTime(record.checkInTime)}</div><div className={`inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทันเวลา")}</div></div><div className="pl-1 sm:pl-2 text-gray-400 shrink-0">{expandedRecordId === record.id ? (<ChevronUp size={16} />) : (<ChevronDown size={16} />)}</div></div>{expandedRecordId === record.id && (<div className="bg-white border-t border-gray-100 p-4 animate-fade-in"><div className="flex flex-col md:flex-row gap-4"><div className="flex-1"><p className="text-sm font-bold text-gray-500 mb-2">รูปถ่ายยืนยัน:</p>
-                    {/* 🟢 6. ส่วนขยาย (Expanded View) */}
+                    {/* 🟢 */}
                     {record.status === "leave" ? (
                          <div className="w-full h-48 bg-blue-50 rounded-lg flex flex-col items-center justify-center border border-blue-100">
                             <User className="text-blue-300 w-16 h-16 mb-2" />
@@ -1493,7 +1492,7 @@ export default function PhotoAttendanceSystem() {
           </div>
         </div>
 
-        {/* Modal สำหรับแก้ไขข้อมูล (Popup) */}
+        {/* Modal  */}
         {editingStudent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -1521,7 +1520,7 @@ export default function PhotoAttendanceSystem() {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
-                {/* 🟢 แยก Grade เป็น Level และ Room */}
+                {/* 🟢 m */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
                   <select 
