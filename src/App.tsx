@@ -111,7 +111,7 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
-  // --- State สำหรับแก้ไขข้อมูล (ปรับปรุงให้มี Level และ Room) ---
+  // --- State สำหรับแก้ไขข้อมูล (ตัด grade ออก ใช้ level/room แทน) ---
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
@@ -139,7 +139,7 @@ export default function PhotoAttendanceSystem() {
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   
-  // --- State Register ปรับปรุงให้มี Level และ Room ---
+  // --- State Register ---
   const [registerForm, setRegisterForm] = useState({
     username: "",
     password: "",
@@ -147,9 +147,9 @@ export default function PhotoAttendanceSystem() {
     fullName: "",
     role: "student",
     studentNumber: "",
-    level: "", // ระดับชั้น (เช่น ปวช.1)
-    room: "",  // ห้อง (เช่น 1)
-    grade: "", // ค่ารวม (จะถูกสร้างอัตโนมัติ)
+    level: "", // ระดับชั้น
+    room: "",  // ห้อง
+    grade: "", // ค่ารวม
     department: "คอมพิวเตอร์",
     secretCode: "",
   });
@@ -304,7 +304,7 @@ export default function PhotoAttendanceSystem() {
             currentLevel = parts[0];
             currentRoom = parts[1];
         } else {
-            currentLevel = student.grade; // กรณีข้อมูลเก่าไม่มี /
+            currentLevel = student.grade; // กรณีข้อมูลเก่า
             currentRoom = "1"; // ค่าเริ่มต้น
         }
     }
@@ -641,7 +641,7 @@ export default function PhotoAttendanceSystem() {
       // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
 
-      // 2. ส่งข้อมูลไป Google Sheets (แบบ text/plain)
+      // 2. ส่งข้อมูลไป Google Sheets
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -1545,6 +1545,7 @@ export default function PhotoAttendanceSystem() {
                 </div>
               </div>
             ) : manageMode ? (
+              // --- MODE: จัดการนักเรียน ---
               <div className="bg-white rounded-xl">
                 <div className="mb-6">
                   <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
@@ -1617,7 +1618,7 @@ export default function PhotoAttendanceSystem() {
                               <FileText size={14} /> ดูประวัติ
                             </button>
                             
-                            {/* ปุ่มแก้ไขข้อมูล */}
+                            {/* ปุ่มแก้ไขข้อมูล (เพิ่มตรงนี้) */}
                             <button 
                               onClick={() => openEditModal(student)} 
                               className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"
@@ -1826,8 +1827,8 @@ export default function PhotoAttendanceSystem() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
                   <select 
-                    value={editForm.grade} 
-                    onChange={(e) => setEditForm({...editForm, grade: e.target.value})} 
+                    value={editForm.level} 
+                    onChange={(e) => setEditForm({...editForm, level: e.target.value})} 
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="ปวช.1">ปวช.1</option>
@@ -1837,8 +1838,6 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
-                
-                {/* 🟢 เพิ่มช่องเลือกห้อง (Room) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
                   <select 
