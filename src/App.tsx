@@ -136,7 +136,7 @@ export default function PhotoAttendanceSystem() {
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [lateTime, setLateTime] = useState("08:00");
+  const [lateTime, setLateTime] = useState("07:55");
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
