@@ -992,7 +992,7 @@ export default function PhotoAttendanceSystem() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
                   <select value={registerForm.room} onChange={(e) => setRegisterForm({ ...registerForm, room: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    <option value="">ห้องเดียว (ไม่ระบุ)</option>
+                    <option value="">ห้องเดียว</option>
                     <option value="1">ห้อง 1</option>
                     <option value="2">ห้อง 2</option>
                   </select>
