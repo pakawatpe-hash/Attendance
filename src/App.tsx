@@ -32,7 +32,7 @@ import {
   LayoutGrid,
   Download,
   Share,
-  Sparkles
+  Sparkles // 🟢 เพิ่มไอคอน Sparkles
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -61,7 +61,7 @@ const TEACHER_SECRET_CODE = "3399";
 
 // 🔊 Sound Effect File
 const SUCCESS_SOUND_URL = "https://www.soundjay.com/buttons/sounds/button-3.mp3";
-const ROLL_SOUND_URL = "https://www.soundjay.com/misc/sounds/magic-chime-01.mp3";
+const ROLL_SOUND_URL = "https://www.soundjay.com/misc/sounds/magic-chime-01.mp3"; // เสียงตอนสุ่มเสร็จ
 
 const firebaseConfig = {
   apiKey: "AIzaSyD2mam9j5GCa90BF5rLnrRelJi7tJ8lTrE",
@@ -121,9 +121,11 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
+  // --- State สำหรับแก้ไขข้อมูล ---
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
+  // --- State สำหรับระบบลา ---
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -132,7 +134,7 @@ export default function PhotoAttendanceSystem() {
   // --- State สำหรับฟีเจอร์ใหม่ ---
   const [showRandomModal, setShowRandomModal] = useState(false);
   const [randomResult, setRandomResult] = useState<string | null>(null);
-  const [isRolling, setIsRolling] = useState(false); 
+  const [isRolling, setIsRolling] = useState(false); // 🟢 สถานะกำลังสุ่ม
   
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupSize, setGroupSize] = useState<number>(5);
@@ -162,6 +164,7 @@ export default function PhotoAttendanceSystem() {
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   
+  // --- State Register ---
   const [registerForm, setRegisterForm] = useState({
     username: "",
     password: "",
@@ -193,6 +196,7 @@ export default function PhotoAttendanceSystem() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Loading State
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // 🟢 PWA: ตรวจจับอุปกรณ์
@@ -230,6 +234,8 @@ export default function PhotoAttendanceSystem() {
 
   useEffect(() => {
     if (!firebaseUser || !db) return;
+    
+    // 1. ดึงข้อมูล Users
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -239,6 +245,8 @@ export default function PhotoAttendanceSystem() {
       setUsers(loadedUsers);
       setIsDataLoaded(true); 
     });
+
+    // 2. ดึงข้อมูล Attendance
     const attendanceQuery = query(collection(db, "attendance"));
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
       const loadedRecords = snapshot.docs.map((doc) => {
@@ -257,6 +265,7 @@ export default function PhotoAttendanceSystem() {
       setAttendanceRecords(loadedRecords);
     });
 
+    // 3. ดึงข้อมูล Leaves (ระบบลา)
     const leavesQuery = query(collection(db, "leaves"));
     const unsubLeaves = onSnapshot(leavesQuery, (snapshot) => {
       const loadedLeaves = snapshot.docs.map((doc) => ({
@@ -294,33 +303,42 @@ export default function PhotoAttendanceSystem() {
     };
   }, [stream]);
 
+  // 🎲 Function: สุ่มชื่อนักเรียนพร้อม Animation
   const handleRandomStudent = () => {
     const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
+    
     if (studentsInGrade.length === 0) {
       setRandomResult("ไม่มีนักเรียนในห้องนี้");
       return;
     }
+
     setIsRolling(true);
     setRandomResult(null);
+
     let count = 0;
-    const maxCount = 20;
+    const maxCount = 20; // จำนวนครั้งที่จะสลับชื่อ
     const interval = setInterval(() => {
+      // สุ่มชื่อโชว์รัวๆ
       const randomIndex = Math.floor(Math.random() * studentsInGrade.length);
       setRandomResult(studentsInGrade[randomIndex].fullName);
+      
       count++;
       if (count >= maxCount) {
         clearInterval(interval);
         setIsRolling(false);
+        // เล่นเสียงตอนจบ
         const audio = new Audio(ROLL_SOUND_URL);
-        audio.play().catch(() => {});
+        audio.play().catch(() => {}); // กัน error กรณี browser บล็อกเสียง
       }
-    }, 100);
+    }, 100); // ความเร็วในการสลับ (ms)
   };
 
   const handleGenerateGroups = () => {
     const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
     if (studentsInGrade.length === 0) return;
+
     const shuffled = [...studentsInGrade].sort(() => 0.5 - Math.random());
+    
     const newGroups = [];
     for (let i = 0; i < shuffled.length; i += groupSize) {
         newGroups.push(shuffled.slice(i, i + groupSize));
@@ -363,10 +381,13 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
+  // --- เปิด Modal แก้ไขข้อมูล (แยก Grade เป็น Level และ Room) ---
   const openEditModal = (student: any) => {
     setEditingStudent(student);
+    
     let currentLevel = "";
-    let currentRoom = ""; 
+    let currentRoom = ""; // ถ้าเป็นค่าว่าง "" แปลว่า "ห้องเดียว"
+
     if (student.grade) {
         const parts = student.grade.split('/');
         if (parts.length === 2) {
@@ -377,6 +398,7 @@ export default function PhotoAttendanceSystem() {
             currentRoom = ""; 
         }
     }
+
     setEditForm({
       fullName: student.fullName,
       studentNumber: student.studentNumber,
@@ -386,14 +408,17 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
+  // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade) ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
 
-    // 🟢 แก้คำว่า ไม่ระบุ ตรงนี้ให้ถูกต้อง (ถ้าค่าว่างคือ ไม่ระบุ)
-    const newGrade = editForm.room && editForm.room !== "" ? `${editForm.level}/${editForm.room}` : editForm.level;
+    // 🟢 Logic รวมร่าง: ถ้าเลือกห้อง (1,2) ให้เติม /x ถ้าเลือก "ห้องเดียว" ("") ให้ใช้ชื่อชั้นเพียวๆ
+    const newGrade = (editForm.room && editForm.room !== "") 
+        ? `${editForm.level}/${editForm.room}` 
+        : editForm.level;
 
     if (confirm(`ยืนยันการแก้ไขข้อมูลของ ${editingStudent.fullName} หรือไม่?`)) {
       try {
@@ -404,20 +429,22 @@ export default function PhotoAttendanceSystem() {
           grade: newGrade,
           department: editForm.department
         });
-        alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅");
+        alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅ ระบบจะรีโหลดเพื่ออัปเดตข้อมูล...");
         setEditingStudent(null); 
-        window.location.reload(); 
+        window.location.reload(); // รีโหลดเพื่อให้เห็นข้อมูลห้องใหม่ทันที
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
     }
   };
 
+  // --- ฟังก์ชันขอลาหยุด (เพิ่ม isSubmitting) ---
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
-    if (isSubmittingLeave) return;
+    if (isSubmittingLeave) return; // 🟢 กันเบิ้ล
     
     setIsSubmittingLeave(true);
+
     try {
       await addDoc(collection(db, "leaves"), {
         studentName: currentUser.fullName,
@@ -426,9 +453,9 @@ export default function PhotoAttendanceSystem() {
         grade: currentUser.grade,
         department: currentUser.department,
         reason: leaveReason,
-        status: "pending", 
+        status: "pending", // รออนุมัติ
         createdAt: new Date().toISOString(),
-        date: new Date().toISOString().split('T')[0] 
+        date: new Date().toISOString().split('T')[0] // ลาของวันนี้
       });
       alert("ส่งคำขอลาเรียบร้อยแล้ว! รออาจารย์อนุมัติ");
       setShowLeaveModal(false);
@@ -459,31 +486,33 @@ export default function PhotoAttendanceSystem() {
 
         if (!hasCheckedIn) {
             const checkInTime = new Date().toISOString();
+            // 1. บันทึกลง Firebase
             await addDoc(collection(db, "attendance"), {
                 studentName: leave.studentName,
                 username: leave.username,
                 studentNumber: leave.studentNumber,
                 grade: leave.grade,
                 department: leave.department,
-                photo: "", 
+                photo: "", // 🟢 ไม่ใช้รูป URL
                 checkInTime: checkInTime,
                 status: "leave", 
                 location: { lat: 0, lng: 0 },
                 distance: 0,
                 isOffCampus: false,
-                leaveReason: leave.reason
+                leaveReason: leave.reason // 🟢 บันทึกเหตุผลลงไปด้วย
             });
 
-            // Auto Sync Leave to Google Sheet
+            // 2. 🟢 Auto Sync to Google Sheet ทันที
             const payload = {
                 name: leave.studentName,
                 studentNumber: leave.studentNumber,
-                studentId: leave.studentNumber,
+                studentId: leave.studentNumber, // ถ้าไม่มีรหัสนักศึกษาใน leave object ให้ใช้ studentNumber แทน
                 status: "leave",
                 checkInTime: formatTime(new Date(checkInTime)),
                 grade: leave.grade || "ไม่ระบุชั้น"
             };
             
+            // ยิงไป Google Apps Script (แบบไม่ต้องรอผลตอบกลับก็ได้ เพื่อความเร็ว)
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -498,9 +527,18 @@ export default function PhotoAttendanceSystem() {
   };
 
   const handleLogin = () => {
-    const hardcodedAdmin = { username: "admin", password: "admin123", role: "teacher", fullName: "อาจารย์ Admin", department: "คอมพิวเตอร์" };
+    const hardcodedAdmin = {
+      username: "admin",
+      password: "admin123",
+      role: "teacher",
+      fullName: "อาจารย์ Admin",
+      department: "คอมพิวเตอร์",
+    };
     const allUsers = [...users, hardcodedAdmin];
-    const user = allUsers.find((u) => u.username === loginForm.username && u.password === loginForm.password);
+    const user = allUsers.find(
+      (u) =>
+        u.username === loginForm.username && u.password === loginForm.password
+    );
     if (user) {
       setCurrentUser(user);
       setPage(user.role === "teacher" ? "teacher" : "student");
@@ -512,15 +550,32 @@ export default function PhotoAttendanceSystem() {
 
   const handleRegister = async () => {
     if (!db) return;
-    if (!registerForm.username || !registerForm.password || !registerForm.fullName) return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
-    if (registerForm.password !== registerForm.confirmPassword) return alert("รหัสผ่านไม่ตรงกัน");
-    if (users.find((u) => u.username === registerForm.username)) return alert("ชื่อผู้ใช้นี้มีอยู่แล้ว");
-    
-    if (registerForm.role === "teacher" && registerForm.secretCode !== TEACHER_SECRET_CODE) {
-      return alert("❌ รหัสยืนยันสำหรับอาจารย์ไม่ถูกต้อง!");
+    if (
+      !registerForm.username ||
+      !registerForm.password ||
+      !registerForm.fullName
+    )
+      return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+    if (registerForm.password !== registerForm.confirmPassword)
+      return alert("รหัสผ่านไม่ตรงกัน");
+    if (users.find((u) => u.username === registerForm.username))
+      return alert("ชื่อผู้ใช้นี้มีอยู่แล้ว");
+
+    if (
+      registerForm.role === "teacher" &&
+      registerForm.secretCode !== TEACHER_SECRET_CODE
+    ) {
+      return alert(
+        "❌ รหัสยืนยันสำหรับอาจารย์ไม่ถูกต้อง! กรุณาติดต่อฝ่ายทะเบียนเพื่อขอรหัส"
+      );
     }
 
-    if (registerForm.role === "student" && (!registerForm.studentNumber || !registerForm.level)) return alert("กรุณาเลือก ระดับชั้น ให้ครบถ้วน");
+    // ตรวจสอบ Level (Room ไม่ต้องบังคับ)
+    if (
+      registerForm.role === "student" &&
+      (!registerForm.studentNumber || !registerForm.level)
+    )
+      return alert("กรุณาเลือก ระดับชั้น ให้ครบถ้วน");
 
     const newUser: any = {
       username: registerForm.username,
@@ -533,6 +588,7 @@ export default function PhotoAttendanceSystem() {
 
     if (registerForm.role === "student") {
       newUser.studentNumber = registerForm.studentNumber;
+      // 🟢 Logic รวมร่าง
       if (registerForm.room && registerForm.room !== "") {
         newUser.grade = `${registerForm.level}/${registerForm.room}`;
       } else {
@@ -545,8 +601,16 @@ export default function PhotoAttendanceSystem() {
       alert("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
       setPage("login");
       setRegisterForm({
-        username: "", password: "", confirmPassword: "", fullName: "", role: "student", studentNumber: "", 
-        level: "", room: "", grade: "", department: "คอมพิวเตอร์", secretCode: "",
+        username: "",
+        password: "",
+        confirmPassword: "",
+        fullName: "",
+        role: "student",
+        studentNumber: "",
+        level: "", room: "", // Reset
+        grade: "",
+        department: "คอมพิวเตอร์",
+        secretCode: "",
       });
     } catch (err: any) {
       alert("เกิดข้อผิดพลาด: " + err.message);
@@ -575,7 +639,12 @@ export default function PhotoAttendanceSystem() {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           setCurrentLocation({ lat, lng });
-          const dist = getDistanceFromLatLonInMeters(lat, lng, COLLEGE_LAT, COLLEGE_LNG);
+          const dist = getDistanceFromLatLonInMeters(
+            lat,
+            lng,
+            COLLEGE_LAT,
+            COLLEGE_LNG
+          );
           setDistanceToCollege(dist);
           setIsLocating(false);
         },
@@ -597,7 +666,11 @@ export default function PhotoAttendanceSystem() {
     try {
       if (stream) stream.getTracks().forEach((track) => track.stop());
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
       });
       setStream(mediaStream);
       setShowCamera(true);
@@ -630,24 +703,44 @@ export default function PhotoAttendanceSystem() {
     startCamera();
   };
 
+
   const submitAttendance = async () => {
     if (!db) return;
-    if (!capturedPhoto) { return alert("กรุณาถ่ายรูปก่อนเช็คชื่อ"); }
-    const isOffCampus = distanceToCollege ? distanceToCollege > MAX_DISTANCE_METERS : true;
-    if (isOffCampus) { return alert("❌ ไม่สามารถเช็คชื่อได้!\n\nกรุณากดอนุญาตการเปิดตำแหน่ง"); return; }
+    if (!capturedPhoto) {
+      alert("กรุณาถ่ายรูปก่อนเช็คชื่อ");
+      return;
+    }
+
+    const isOffCampus = distanceToCollege
+      ? distanceToCollege > MAX_DISTANCE_METERS
+      : true;
+
+    if (isOffCampus) {
+      alert("❌ ไม่สามารถเช็คชื่อได้!\n\nกรุณากดอนุญาตการเปิดตำแหน่ง");
+      return;
+    }
 
     const now = new Date();
     const [h, m] = lateTime.split(":");
-    const isLate = now.getHours() > parseInt(h) || (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
+    const isLate =
+      now.getHours() > parseInt(h) ||
+      (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
 
+    // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
     const todayStr = now.toISOString().split('T')[0]; 
     const hasCheckedInToday = attendanceRecords.some((record) => {
       if (record.username !== currentUser.username) return false;
-      const recordDate = record.checkInTime instanceof Date ? record.checkInTime.toISOString().split('T')[0] : new Date(record.checkInTime).toISOString().split('T')[0];
+      const recordDate = record.checkInTime instanceof Date 
+        ? record.checkInTime.toISOString().split('T')[0]
+        : new Date(record.checkInTime).toISOString().split('T')[0];
+      
       return recordDate === todayStr;
     });
 
-    if (hasCheckedInToday) { return alert("❌ วันนี้คุณเช็คชื่อไปแล้วครับ!"); }
+    if (hasCheckedInToday) {
+      alert("❌ วันนี้คุณเช็คชื่อไปแล้วครับ! (สามารถเช็คได้วันละ 1 ครั้ง)");
+      return; // หยุดทำงานทันที
+    }
 
     const newRecord = {
       studentName: currentUser.fullName,
@@ -664,7 +757,11 @@ export default function PhotoAttendanceSystem() {
     };
 
     try {
+      
+      // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
+
+      // 2. ส่งข้อมูลไป Google Sheets
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -676,10 +773,13 @@ export default function PhotoAttendanceSystem() {
 
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
         body: JSON.stringify(payload),
       });
 
+      // 🔊 Sound Effect
       const audio = new Audio(SUCCESS_SOUND_URL);
       audio.play();
 
@@ -690,56 +790,47 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // 🟢 แก้ไขฟังก์ชัน Sync ให้รวมคนขาดไปด้วย
+  
   const handleSyncData = async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     
-    if (!selectedGrade) return alert("กรุณาเลือกห้องก่อนกดซิงค์");
-
-    const allStudentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
-    
-    const checkedInToday = attendanceRecords.filter(r => {
-      const rDate = r.checkInTime instanceof Date ? r.checkInTime.toISOString().split('T')[0] : new Date(r.checkInTime).toISOString().split('T')[0];
-      return r.grade === selectedGrade && rDate === todayStr;
+    const todaysRecords = attendanceRecords.filter(r => {
+      if (!r.checkInTime) return false;
+      const recordDate = new Date(r.checkInTime).toISOString().split('T')[0];
+      return recordDate === todayStr;
     });
-    const checkedInUsernames = checkedInToday.map(r => r.username);
 
-    // หาคนขาด (Absent)
-    const absentStudents = allStudentsInGrade.filter(u => !checkedInUsernames.includes(u.username));
+    if (todaysRecords.length === 0) {
+      alert("ไม่พบข้อมูลการเช็คชื่อของวันนี้ในระบบ");
+      return;
+    }
 
-    // รวมข้อมูลที่จะส่ง (คนมา + คนขาด)
-    const batchData = [
-      ...checkedInToday.map(r => ({
-        name: r.studentName,
-        studentNumber: r.studentNumber,
-        studentId: r.studentNumber,
-        status: r.status, // present, late, leave
-        checkInTime: formatTime(new Date(r.checkInTime)),
-        grade: r.grade || "ไม่ระบุชั้น"
-      })),
-      // 🟢 เพิ่มข้อมูลคนขาด
-      ...absentStudents.map(u => ({
-        name: u.fullName,
-        studentNumber: u.studentNumber,
-        studentId: u.studentNumber,
-        status: "absent", // 🔴 ส่งสถานะเป็น absent ไปให้ GAS
-        checkInTime: "-",
-        grade: u.grade
-      }))
-    ];
+    if (!confirm(`พบข้อมูล ${todaysRecords.length} รายการ จะทำการซิงค์รวดเดียว... ยืนยัน?`)) return;
 
-    if (batchData.length === 0) return alert("ไม่พบข้อมูลนักเรียนในห้องนี้");
+    const batchData = todaysRecords.map(record => ({
+      name: record.studentName,
+      studentNumber: record.studentNumber,
+      studentId: record.studentNumber,
+      status: record.status,
+      checkInTime: formatTime(new Date(record.checkInTime)),
+      grade: record.grade || "ไม่ระบุชั้น"
+    }));
 
-    if (!confirm(`ยืนยันการส่งข้อมูล ${batchData.length} รายการ?\n(มา: ${checkedInToday.length}, ขาด: ${absentStudents.length})`)) return;
+    const payload = {
+      mode: "batch_sync",
+      data: batchData
+    };
 
-    const payload = { mode: "batch_sync", data: batchData };
     try {
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
         body: JSON.stringify(payload),
       });
-      alert(`✅ ส่งข้อมูลเรียบร้อย!\n- มา/สาย/ลา: ${checkedInToday.length}\n- ขาด: ${absentStudents.length}`);
+      
+      alert(`✅ ส่งข้อมูล ${batchData.length} รายการเรียบร้อยแล้ว!`);
     } catch (e) {
       console.error("Sync error", e);
       alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
@@ -749,14 +840,27 @@ export default function PhotoAttendanceSystem() {
   const deleteRecord = async (id: string) => {
     if (!db) return;
     if (window.confirm("ต้องการลบรายการนี้ใช่หรือไม่?")) {
-      try { await deleteDoc(doc(db, "attendance", id)); } catch (err) { alert("ลบข้อมูลไม่สำเร็จ"); }
+      try {
+        await deleteDoc(doc(db, "attendance", id));
+      } catch (err) {
+        alert("ลบข้อมูลไม่สำเร็จ");
+      }
     }
   };
 
   const deleteStudentAccount = async (id: string) => {
     if (!db) return;
-    if (window.confirm("⚠️ คำเตือน: การลบนี้จะทำให้บัญชีนักเรียนหายไปถาวร ต้องสมัครใหม่\n\nยืนยันการลบหรือไม่?")) {
-      try { await deleteDoc(doc(db, "users", id)); alert("ลบบัญชีนักเรียนเรียบร้อยแล้ว"); } catch (err) { alert("ลบไม่สำเร็จ"); }
+    if (
+      window.confirm(
+        "⚠️ คำเตือน: การลบนี้จะทำให้บัญชีนักเรียนหายไปถาวร ต้องสมัครใหม่\n\nยืนยันการลบหรือไม่?"
+      )
+    ) {
+      try {
+        await deleteDoc(doc(db, "users", id));
+        alert("ลบบัญชีนักเรียนเรียบร้อยแล้ว");
+      } catch (err) {
+        alert("ลบไม่สำเร็จ");
+      }
     }
   };
 
@@ -764,29 +868,50 @@ export default function PhotoAttendanceSystem() {
     if (!db || !student) return;
     const newPass = prompt("กรุณากรอกรหัสผ่านใหม่สำหรับ " + student.fullName);
     if (newPass) {
-      try { const userRef = doc(db, "users", student.id); await updateDoc(userRef, { password: newPass }); alert("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว! \nรหัสใหม่คือ: " + newPass); } catch (err) { alert("เปลี่ยนรหัสไม่สำเร็จ"); }
+      try {
+        const userRef = doc(db, "users", student.id);
+        await updateDoc(userRef, { password: newPass });
+        alert("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว! \nรหัสใหม่คือ: " + newPass);
+      } catch (err) {
+        alert("เปลี่ยนรหัสไม่สำเร็จ");
+      }
     }
   };
 
+  // --- Export CSV Function (Filtered by Month) ---
   const exportToCSV = (student: any) => {
     const studentRecords = attendanceRecords
       .filter((r) => {
         const recordMonth = getYearMonth(new Date(r.checkInTime));
-        return (r.username === student.username && recordMonth === historyFilterMonth);
+        return (
+          r.username === student.username && recordMonth === historyFilterMonth
+        );
       })
-      .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime());
+      .sort(
+        (a, b) =>
+          new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()
+      );
 
     const headers = ["วันที่", "เวลา", "สถานะ", "สถานที่", "ระยะห่าง"];
+
     const rows = studentRecords.map((record) => [
-      formatDate(record.checkInTime), formatTime(record.checkInTime),
+      formatDate(record.checkInTime),
+      formatTime(record.checkInTime),
       record.status === "late" ? "มาสาย" : (record.status === "leave" ? "ลา" : "มาทันเวลา"),
       record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย",
       Math.round(record.distance || 0) + " เมตร",
     ]);
 
-    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
+
     const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([BOM + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1415,6 +1540,7 @@ export default function PhotoAttendanceSystem() {
                   <div className="flex items-center gap-2 w-full sm:w-auto"><div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border"><Calendar size={16} className="text-gray-500" /><span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span><input type="month" value={historyFilterMonth} onChange={(e) => setHistoryFilterMonth(e.target.value)} className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" /></div><button onClick={() => exportToCSV(viewingHistoryStudent)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" title="Export to CSV"><FileSpreadsheet size={16} /> Export</button><button onClick={() => setViewingHistoryStudent(null)} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={20} className="text-gray-500" /></button></div>
                 </div>
                 <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
+                  {/* 🟢 แสดงเหตุผลการลาให้ครูเห็นด้วย */}
                   {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}
                 </div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
               </div>
@@ -1560,7 +1686,6 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
-                {/* 🟢 เปลี่ยนจาก 'ห้องเดียว' เป็น 'ไม่ระบุ' ตามสั่ง */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
                   <select 
@@ -1568,7 +1693,7 @@ export default function PhotoAttendanceSystem() {
                     onChange={(e) => setEditForm({...editForm, room: e.target.value})} 
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">ไม่ระบุ</option>
+                    <option value="">ไม่ระบุ</option> {/* 🟢 แก้คำตรงนี้ */}
                     <option value="1">ห้อง 1</option>
                     <option value="2">ห้อง 2</option>
                   </select>
