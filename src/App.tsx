@@ -32,8 +32,7 @@ import {
   LayoutGrid,
   Download,
   Share,
-  Sparkles,
-  Bell // 🟢 เพิ่มไอคอนกระดิ่งสำหรับปุ่มส่งไลน์
+  Sparkles
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -122,15 +121,13 @@ export default function PhotoAttendanceSystem() {
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
 
-  // --- State สำหรับแก้ไขข้อมูล ---
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
 
-  // --- State สำหรับระบบลา ---
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveReason, setLeaveReason] = useState("");
   const [leaves, setLeaves] = useState<any[]>([]);
-  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false); // 🟢 กันเบิ้ล
+  const [isSubmittingLeave, setIsSubmittingLeave] = useState(false); // กันเบิ้ล
 
   // --- State สำหรับฟีเจอร์ใหม่ ---
   const [showRandomModal, setShowRandomModal] = useState(false);
@@ -165,7 +162,6 @@ export default function PhotoAttendanceSystem() {
 
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   
-  // --- State Register ---
   const [registerForm, setRegisterForm] = useState({
     username: "",
     password: "",
@@ -199,7 +195,7 @@ export default function PhotoAttendanceSystem() {
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // 🟢 PWA
+  // 🟢 PWA: ตรวจจับอุปกรณ์
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
@@ -367,13 +363,10 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- เปิด Modal แก้ไขข้อมูล ---
   const openEditModal = (student: any) => {
     setEditingStudent(student);
-    
     let currentLevel = "";
-    let currentRoom = ""; // ถ้าเป็นค่าว่าง "" แปลว่า "ไม่ระบุ"
-
+    let currentRoom = ""; 
     if (student.grade) {
         const parts = student.grade.split('/');
         if (parts.length === 2) {
@@ -384,7 +377,6 @@ export default function PhotoAttendanceSystem() {
             currentRoom = ""; 
         }
     }
-
     setEditForm({
       fullName: student.fullName,
       studentNumber: student.studentNumber,
@@ -394,7 +386,6 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
-  // --- บันทึกข้อมูลแก้ไข ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
@@ -415,21 +406,18 @@ export default function PhotoAttendanceSystem() {
         });
         alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅");
         setEditingStudent(null); 
-        // รีโหลดเพื่ออัปเดต dropdown
-        window.location.reload();
+        window.location.reload(); 
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
     }
   };
 
-  // --- ฟังก์ชันขอลาหยุด (กดได้รอบเดียว) ---
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
-    if (isSubmittingLeave) return; // 🟢 กันเบิ้ล
+    if (isSubmittingLeave) return;
     
     setIsSubmittingLeave(true);
-
     try {
       await addDoc(collection(db, "leaves"), {
         studentName: currentUser.fullName,
@@ -438,7 +426,7 @@ export default function PhotoAttendanceSystem() {
         grade: currentUser.grade,
         department: currentUser.department,
         reason: leaveReason,
-        status: "pending",
+        status: "pending", 
         createdAt: new Date().toISOString(),
         date: new Date().toISOString().split('T')[0] 
       });
@@ -452,7 +440,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- ฟังก์ชันอนุมัติการลา (Auto Sync) ---
+  // --- 🟢 อนุมัติลา + Auto Sync ไป Google Sheet ---
   const handleLeaveAction = async (leave: any, isApproved: boolean) => {
     if (!db) return;
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
@@ -503,63 +491,10 @@ export default function PhotoAttendanceSystem() {
             }).catch(err => console.error("Auto sync leave failed", err));
         }
       }
-      alert("ดำเนินการเรียบร้อยแล้ว ✅");
+      alert("ดำเนินการเรียบร้อยแล้ว ✅ (ข้อมูลถูกส่งไป Google Sheet แล้ว)");
     } catch (err: any) {
       alert("เกิดข้อผิดพลาด: " + err.message);
     }
-  };
-
-  // 🟢 ฟังก์ชันใหม่: ส่งสรุปยอดเข้า Line (รวมคนขาด)
-  const handleSendLineReport = async (gradeRecs: any[], activeGrade: string) => {
-     if (!confirm(`ยืนยันการส่งสรุปยอดของห้อง ${activeGrade} เข้า Line?\n(รวมถึงแจ้งรายชื่อคนขาดเรียน)`)) return;
-
-     // 1. หาคนทั้งหมดในห้องนี้
-     const allStudentsInGrade = users.filter(u => u.role === 'student' && u.grade === activeGrade);
-     
-     // 2. หาคนขาด (ไม่อยู่ใน attendanceRecords)
-     const checkedInUsernames = gradeRecs.map(r => r.username);
-     const absentStudents = allStudentsInGrade.filter(u => !checkedInUsernames.includes(u.username));
-
-     // 3. เตรียมข้อความ
-     const presentCount = gradeRecs.filter(r => r.status === 'present').length;
-     const lateCount = gradeRecs.filter(r => r.status === 'late').length;
-     const leaveCount = gradeRecs.filter(r => r.status === 'leave').length;
-     const absentCount = absentStudents.length;
-     
-     let message = `📊 สรุปยอดประจำวันที่ ${new Date().toLocaleDateString('th-TH')}\n`;
-     message += `=========================\n`;
-     message += `📍 ห้อง: ${activeGrade}\n`;
-     message += `✅ มาทัน: ${presentCount} คน\n`;
-     message += `⚠️ สาย: ${lateCount} คน\n`;
-     message += `📝 ลา: ${leaveCount} คน\n`;
-     message += `❌ ขาด: ${absentCount} คน\n`;
-
-     if (absentCount > 0) {
-        message += `\nรายชื่อคนขาด:\n`;
-        absentStudents.forEach(s => {
-            message += `• ${s.fullName} (เลขที่ ${s.studentNumber})\n`;
-        });
-     }
-
-     // 4. ส่งไป GAS (ใช้ mode ใหม่: broadcast_text)
-     try {
-        const payload = {
-            mode: "broadcast_text", 
-            message: message,
-            grade: activeGrade // ส่งห้องไปด้วย เพื่อให้ GAS รู้ว่าจะส่งเข้ากลุ่มไหน
-        };
-
-        await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(payload),
-        });
-
-        alert("✅ ส่งข้อมูลสรุปเข้า Line เรียบร้อยแล้ว!");
-     } catch (e) {
-        console.error(e);
-        alert("❌ เกิดข้อผิดพลาดในการส่ง Line");
-     }
   };
 
   const handleLogin = () => {
@@ -738,12 +673,16 @@ export default function PhotoAttendanceSystem() {
         checkInTime: formatTime(now),
         grade: currentUser.grade || "ไม่ระบุชั้น"
       };
+
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
-      const audio = new Audio(SUCCESS_SOUND_URL); audio.play();
+
+      const audio = new Audio(SUCCESS_SOUND_URL);
+      audio.play();
+
       setCapturedPhoto(null);
       alert("เช็คชื่อสำเร็จ! บันทึกลงฐานข้อมูลและส่งแจ้งเตือนแล้ว");
     } catch (err: any) {
@@ -751,27 +690,24 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // 🟢 แก้ไขฟังก์ชัน Sync ให้ส่งคนขาดไปด้วย
+  // 🟢 แก้ไขฟังก์ชัน Sync ให้รวมคนขาดไปด้วย
   const handleSyncData = async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     
-    // 1. กรองเฉพาะห้องที่เลือกอยู่ (activeGrade)
     if (!selectedGrade) return alert("กรุณาเลือกห้องก่อนกดซิงค์");
-    
-    // 2. ดึงนักเรียนทุกคนในห้องนั้น
+
     const allStudentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
     
-    // 3. ดึงคนเช็คชื่อแล้วในวันนี้
     const checkedInToday = attendanceRecords.filter(r => {
       const rDate = r.checkInTime instanceof Date ? r.checkInTime.toISOString().split('T')[0] : new Date(r.checkInTime).toISOString().split('T')[0];
       return r.grade === selectedGrade && rDate === todayStr;
     });
     const checkedInUsernames = checkedInToday.map(r => r.username);
 
-    // 4. หาคนขาด (Absent)
+    // หาคนขาด (Absent)
     const absentStudents = allStudentsInGrade.filter(u => !checkedInUsernames.includes(u.username));
 
-    // 5. รวมข้อมูลที่จะส่ง (คนมา + คนขาด)
+    // รวมข้อมูลที่จะส่ง (คนมา + คนขาด)
     const batchData = [
       ...checkedInToday.map(r => ({
         name: r.studentName,
@@ -781,11 +717,12 @@ export default function PhotoAttendanceSystem() {
         checkInTime: formatTime(new Date(r.checkInTime)),
         grade: r.grade || "ไม่ระบุชั้น"
       })),
+      // 🟢 เพิ่มข้อมูลคนขาด
       ...absentStudents.map(u => ({
         name: u.fullName,
         studentNumber: u.studentNumber,
         studentId: u.studentNumber,
-        status: "absent", // 🔴 ระบุสถานะขาด
+        status: "absent", // 🔴 ส่งสถานะเป็น absent ไปให้ GAS
         checkInTime: "-",
         grade: u.grade
       }))
@@ -802,7 +739,7 @@ export default function PhotoAttendanceSystem() {
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
-      alert(`✅ ส่งข้อมูลเรียบร้อย!\n- มา/สาย/ลา: ${checkedInToday.length}\n- ขาดสอบ: ${absentStudents.length}`);
+      alert(`✅ ส่งข้อมูลเรียบร้อย!\n- มา/สาย/ลา: ${checkedInToday.length}\n- ขาด: ${absentStudents.length}`);
     } catch (e) {
       console.error("Sync error", e);
       alert("เกิดข้อผิดพลาดในการส่งข้อมูล");
@@ -831,40 +768,25 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
-  // --- Export CSV Function (Filtered by Month) ---
   const exportToCSV = (student: any) => {
     const studentRecords = attendanceRecords
       .filter((r) => {
         const recordMonth = getYearMonth(new Date(r.checkInTime));
-        return (
-          r.username === student.username && recordMonth === historyFilterMonth
-        );
+        return (r.username === student.username && recordMonth === historyFilterMonth);
       })
-      .sort(
-        (a, b) =>
-          new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()
-      );
+      .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime());
 
     const headers = ["วันที่", "เวลา", "สถานะ", "สถานที่", "ระยะห่าง"];
-
     const rows = studentRecords.map((record) => [
-      formatDate(record.checkInTime),
-      formatTime(record.checkInTime),
+      formatDate(record.checkInTime), formatTime(record.checkInTime),
       record.status === "late" ? "มาสาย" : (record.status === "leave" ? "ลา" : "มาทันเวลา"),
       record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย",
       Math.round(record.distance || 0) + " เมตร",
     ]);
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
-
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
     const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1480,12 +1402,7 @@ export default function PhotoAttendanceSystem() {
                    <LayoutGrid size={16} /> จัดกลุ่ม
                 </button>
                 
-                {/* 🟢 ปุ่มใหม่: ส่งสรุปยอดเข้าไลน์ (รวมคนขาด) */}
-                <button onClick={() => handleSendLineReport(gradeRecs, activeGrade)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base shadow-md">
-                    <Bell size={16} /> ส่งสรุปยอดเข้า Line
-                </button>
-                
-                <button onClick={handleSyncData} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm sm:text-base"><RefreshCw size={16} /> ซิงค์ Google Sheet</button>
+                <button onClick={handleSyncData} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm sm:text-base"><RefreshCw size={16} /> ซิงค์ข้อมูลวันนี้</button>
                 <button onClick={() => setManageMode(!manageMode)} className={`flex items-center gap-2 px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors text-sm sm:text-base ${manageMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}>{manageMode ? <Users size={16} /> : <Settings size={16} />}{manageMode ? "กลับไปเช็คชื่อ" : "จัดการนักเรียน"}</button>
                 <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm sm:text-base"><LogOut size={16} /> ออกจากระบบ</button>
               </div>
@@ -1498,7 +1415,6 @@ export default function PhotoAttendanceSystem() {
                   <div className="flex items-center gap-2 w-full sm:w-auto"><div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border"><Calendar size={16} className="text-gray-500" /><span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span><input type="month" value={historyFilterMonth} onChange={(e) => setHistoryFilterMonth(e.target.value)} className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" /></div><button onClick={() => exportToCSV(viewingHistoryStudent)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" title="Export to CSV"><FileSpreadsheet size={16} /> Export</button><button onClick={() => setViewingHistoryStudent(null)} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={20} className="text-gray-500" /></button></div>
                 </div>
                 <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
-                  {/* 🟢 แสดงเหตุผลการลาให้ครูเห็นด้วย */}
                   {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}
                 </div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
               </div>
@@ -1644,6 +1560,7 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
+                {/* 🟢 เปลี่ยนจาก 'ห้องเดียว' เป็น 'ไม่ระบุ' ตามสั่ง */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ห้อง</label>
                   <select 
@@ -1651,7 +1568,7 @@ export default function PhotoAttendanceSystem() {
                     onChange={(e) => setEditForm({...editForm, room: e.target.value})} 
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">ไม่ระบุ</option> {/* 🟢 แก้คำตรงนี้ */}
+                    <option value="">ไม่ระบุ</option>
                     <option value="1">ห้อง 1</option>
                     <option value="2">ห้อง 2</option>
                   </select>
