@@ -32,7 +32,7 @@ import {
   LayoutGrid,
   Download,
   Share,
-  Sparkles // 🟢 เพิ่มไอคอน Sparkles
+  Sparkles
 } from "lucide-react";
 
 // --- Firebase Imports ---
@@ -1281,7 +1281,7 @@ export default function PhotoAttendanceSystem() {
 
                   {/* ปุ่มขอลาหยุด */}
                   <button onClick={() => setShowLeaveModal(true)} className="px-8 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2">
-                     <FileQuestion size={20} /> ขอลาหยุด
+                      <FileQuestion size={20} /> ขอลาหยุด
                   </button>
                 </div>
               </div>
@@ -1457,8 +1457,8 @@ export default function PhotoAttendanceSystem() {
                         {/* 🟢 ในส่วนขยาย ถ้าเป็น leave ให้โชว์ไอคอนใหญ่ */}
                         {record.status === "leave" ? (
                            <div className="flex flex-col items-center justify-center py-4 bg-blue-50 rounded-lg w-full">
-                              <User className="text-blue-300 w-16 h-16 mb-2" />
-                              <p className="text-blue-500 font-medium">ลากิจ/ลาป่วย</p>
+                             <User className="text-blue-300 w-16 h-16 mb-2" />
+                             <p className="text-blue-500 font-medium">ลากิจ/ลาป่วย</p>
                            </div>
                         ) : (
                            <img src={record.photo} className="rounded-lg max-h-48 object-contain shadow-sm" />
@@ -1509,6 +1509,8 @@ export default function PhotoAttendanceSystem() {
     const gradeRecs = attendanceRecords.filter((r) => { const recordDate = formatDateForInput(r.checkInTime); return r.grade === activeGrade && recordDate === filterDate; });
     const gradePresent = gradeRecs.filter((r) => r.status === "present").length;
     const gradeLate = gradeRecs.filter((r) => r.status === "late").length;
+    // 🟢 คำนวณยอดลา
+    const gradeLeave = gradeRecs.filter((r) => r.status === "leave").length;
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -1572,7 +1574,34 @@ export default function PhotoAttendanceSystem() {
               <>
                 <div className="mb-6 overflow-x-auto pb-2"><h3 className="text-xs sm:text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wider">เลือกระดับชั้น</h3><div className="flex gap-2">{uniqueGrades.length > 0 ? (uniqueGrades.map((g) => (<button key={g} onClick={() => setSelectedGrade(g)} className={`px-4 py-1.5 sm:px-6 sm:py-2 rounded-full font-medium transition-all whitespace-nowrap text-sm sm:text-base ${activeGrade === g ? "bg-indigo-600 text-white shadow-md transform scale-105" : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50"}`}>{g}</button>))) : (<div className="text-gray-400 italic text-sm">ยังไม่มีข้อมูลนักเรียนในระบบ</div>)}</div></div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-6 bg-white p-3 rounded-lg border w-full sm:w-fit"><div className="flex items-center gap-2"><Calendar size={18} className="text-indigo-600" /><span className="text-sm font-bold text-gray-700 whitespace-nowrap">เลือกวันที่ดูข้อมูล:</span></div><input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="outline-none text-indigo-600 font-bold bg-transparent cursor-pointer text-sm sm:text-base w-full sm:w-auto" /></div>
-                {activeGrade && (<div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6"><div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2"><h2 className="text-lg sm:text-xl font-bold text-indigo-900 flex items-center gap-2"><Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด ({activeGrade})</h2><div className="text-xs sm:text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">วันที่: {new Date(filterDate).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", })}</div></div><div className="grid grid-cols-3 gap-3 sm:gap-6"><div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-blue-500"><div className="text-xl sm:text-3xl font-bold text-blue-900 mb-1">{gradeRecs.length}</div><div className="text-xs sm:text-sm font-medium text-blue-600">มาเรียน</div></div><div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-green-500"><div className="text-xl sm:text-3xl font-bold text-green-900 mb-1">{gradePresent}</div><div className="text-xs sm:text-sm font-medium text-green-600">มาตรงเวลา</div></div><div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-orange-500"><div className="text-xl sm:text-3xl font-bold text-orange-900 mb-1">{gradeLate}</div><div className="text-xs sm:text-sm font-medium text-orange-600">มาสาย</div></div></div></div>)}
+                {activeGrade && (
+                  <div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+                        <h2 className="text-lg sm:text-xl font-bold text-indigo-900 flex items-center gap-2"><Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด ({activeGrade})</h2>
+                        <div className="text-xs sm:text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">วันที่: {new Date(filterDate).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", })}</div>
+                    </div>
+                    {/* 🟢 แก้ตรงนี้: เพิ่มช่องลา (และปรับ Grid เป็น 4 ช่อง ถ้าหน้าจอใหญ่) */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-blue-500">
+                            <div className="text-xl sm:text-3xl font-bold text-blue-900 mb-1">{gradeRecs.length}</div>
+                            <div className="text-xs sm:text-sm font-medium text-blue-600">มาเรียน</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-green-500">
+                            <div className="text-xl sm:text-3xl font-bold text-green-900 mb-1">{gradePresent}</div>
+                            <div className="text-xs sm:text-sm font-medium text-green-600">มาตรงเวลา</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-orange-500">
+                            <div className="text-xl sm:text-3xl font-bold text-orange-900 mb-1">{gradeLate}</div>
+                            <div className="text-xs sm:text-sm font-medium text-orange-600">มาสาย</div>
+                        </div>
+                        {/* 🟢 เพิ่มกล่องสีชมพูสำหรับคนลา */}
+                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-pink-500">
+                            <div className="text-xl sm:text-3xl font-bold text-pink-900 mb-1">{gradeLeave}</div>
+                            <div className="text-xs sm:text-sm font-medium text-pink-600">ลา</div>
+                        </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-gray-50 p-4 rounded-lg"><div className="flex items-center gap-2"><Settings className="w-5 h-5 text-gray-600" /><label className="text-sm font-medium text-gray-700 whitespace-nowrap">กำหนดเวลาสาย:</label></div><div className="flex w-full sm:w-auto items-center justify-between gap-4"><input type="time" value={lateTime} onChange={(e) => setLateTime(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto" /><div className="ml-auto sm:ml-0 flex items-center gap-2 text-base sm:text-lg font-semibold text-indigo-700"><Clock className="w-5 h-5" /> {formatTime(currentTime)}</div></div></div>
                 
                 {/* เมนูใหม่: รายการขอลาหยุด */}
