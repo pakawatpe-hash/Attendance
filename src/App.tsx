@@ -188,7 +188,7 @@ export default function PhotoAttendanceSystem() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-
+  const [isLoadingTeacherData, setIsLoadingTeacherData] = useState(false); // 🟢 เพิ่มบรรทัดนี้
   // 🟢 PWA: ตรวจจับอุปกรณ์
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
@@ -292,13 +292,14 @@ useEffect(() => {
     unsubLeaves();
   };
 }, [firebaseUser]); // 🟢 โหลดครั้งเดียวตอนเริ่มต้น
-  // 🟢 3. useEffect สำหรับอาจารย์ดูข้อมูลย้อนหลัง
 useEffect(() => {
   if (!firebaseUser || !db || !currentUser) return;
-  if (currentUser.role !== "teacher") return; // ถ้าไม่ใช่ครู ก็ไม่ต้องทำ
+  if (currentUser.role !== "teacher") return;
   
-  const targetDate = filterDate; // วันที่ครูเลือก
+  const targetDate = filterDate;
   
+  // 🟢 เริ่ม Loading
+  setIsLoadingTeacherData(true);
   console.log("🔄 อาจารย์ดูข้อมูลวันที่:", targetDate);
   
   const attendanceQuery = query(
@@ -318,6 +319,9 @@ useEffect(() => {
     });
     loadedRecords.sort((a, b) => b.checkInTime.getTime() - a.checkInTime.getTime());
     setAttendanceRecords(loadedRecords);
+    
+    // 🟢 โหลดเสร็จแล้ว
+    setIsLoadingTeacherData(false);
   });
 
   return () => unsubAttendance();
@@ -1514,10 +1518,47 @@ useEffect(() => {
                    )}
                 </div>
 
-                <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg"><Users className="w-4 h-4 sm:w-5 sm:h-5" /></span> รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})</h2>
-                  {!activeGrade ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base">กรุณาเลือกชั้นเรียนด้านบน</div>) : gradeRecs.length === 0 ? (<div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base"><Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-30" /> ไม่มีการเช็คชื่อในวันที่เลือก</div>) : (<div className="space-y-3">{gradeRecs.sort((a, b) => a.studentNumber - b.studentNumber).map((record, index) => (<div key={record.id} onClick={() => toggleExpandRecord(record.id)} className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4"><div className="text-xl sm:text-2xl font-bold text-gray-400 w-6 sm:w-8 text-center shrink-0">{record.studentNumber}</div>
-                    {/* 🟢 4. ส่วนแสดงรูปในหน้าหลัก (List View) */}
+               <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6">
+  <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+    <span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg">
+      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+    </span> 
+    รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})
+  </h2>
+  
+  {/* 🟢 Loading UI - แสดงตอนกำลังโหลดข้อมูล */}
+  {isLoadingTeacherData ? (
+    <div className="flex flex-col items-center justify-center py-12 bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200 animate-pulse">
+      <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+      <p className="text-indigo-700 font-semibold text-lg">กำลังดาวน์โหลดข้อมูล...</p>
+      <p className="text-indigo-500 text-sm mt-2">โปรดรอสักครู่</p>
+    </div>
+  ) : !activeGrade ? (
+    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base">
+      กรุณาเลือกชั้นเรียนด้านบน
+    </div>
+  ) : gradeRecs.length === 0 ? (
+    <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed text-sm sm:text-base">
+      <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 opacity-30" /> 
+      ไม่มีการเช็คชื่อในวันที่เลือก
+    </div>
+  ) : (
+    <div className="space-y-3">
+      {gradeRecs.sort((a, b) => a.studentNumber - b.studentNumber).map((record, index) => (
+        <div 
+          key={record.id} 
+          onClick={() => toggleExpandRecord(record.id)} 
+          className={`rounded-xl border-2 transition-all cursor-pointer hover:shadow-md overflow-hidden ${
+            record.status === "late" 
+              ? "bg-orange-50 border-orange-200" 
+              : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")
+          }`}
+        >
+          <div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4">
+            <div className="text-xl sm:text-2xl font-bold text-gray-400 w-6 sm:w-8 text-center shrink-0">
+              {record.studentNumber}
+            </div>
+            {/* 🟢 4. ส่วนแสดงรูปในหน้าหลัก (List View) */}
                     {record.status === "leave" ? (
                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center">
                            <User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" />
