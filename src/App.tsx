@@ -47,7 +47,7 @@ import {
   onSnapshot,
   query,
   updateDoc,
-  where // 🟢 เพิ่ม where เพื่อกรองข้อมูล
+  where // 🟢 (1) เพิ่ม where เข้ามาเพื่อกรองข้อมูล
 } from "firebase/firestore";
 
 
@@ -189,7 +189,6 @@ export default function PhotoAttendanceSystem() {
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // 🟢 PWA: ตรวจจับอุปกรณ์
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
@@ -222,11 +221,11 @@ export default function PhotoAttendanceSystem() {
     return () => unsubscribe();
   }, []);
 
-  // 🔴 🔴 แก้ไขจุดที่ทำให้โหลดช้า 🔴 🔴
+  // 🔴🔴 (2) แก้ไข useEffect ส่วนนี้ให้โหลดเร็วขึ้น 🔴🔴
   useEffect(() => {
     if (!firebaseUser || !db) return;
     
-    // 1. ดึงข้อมูล Users (อันนี้ไม่เยอะ ดึงหมดได้)
+    // 1. ดึงข้อมูล Users (อันนี้ไฟล์เล็ก ดึงหมดได้)
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -263,8 +262,7 @@ export default function PhotoAttendanceSystem() {
       );
       setAttendanceRecords(loadedRecords);
     }, (error) => {
-        console.error("Firebase Index Error:", error);
-        // ถ้าขึ้น error นี้ ให้เปิด console แล้วคลิกลิงก์เพื่อสร้าง index
+        console.error("Firebase Query Error (อาจต้องสร้าง Index):", error);
     });
 
     // 3. ดึงข้อมูล Leaves
@@ -284,7 +282,7 @@ export default function PhotoAttendanceSystem() {
       unsubAttendance();
       unsubLeaves();
     };
-  }, [firebaseUser, historyFilterMonth]); // 🟢 โหลดใหม่เมื่อเปลี่ยนเดือน (historyFilterMonth)
+  }, [firebaseUser, historyFilterMonth]); // 🟢 (3) สั่งให้โหลดใหม่เมื่อเปลี่ยนเดือน
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -1356,7 +1354,10 @@ export default function PhotoAttendanceSystem() {
                   <h3 className="text-base sm:text-lg font-bold text-gray-700 flex items-center gap-2"><FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" /> ประวัติ: {viewingHistoryStudent.fullName}</h3>
                   <div className="flex items-center gap-2 w-full sm:w-auto"><div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border"><Calendar size={16} className="text-gray-500" /><span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span><input type="month" value={historyFilterMonth} onChange={(e) => setHistoryFilterMonth(e.target.value)} className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" /></div><button onClick={() => exportToCSV(viewingHistoryStudent)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" title="Export to CSV"><FileSpreadsheet size={16} /> Export</button><button onClick={() => setViewingHistoryStudent(null)} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={20} className="text-gray-500" /></button></div>
                 </div>
-                <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>{record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}</div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
+                <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
+                  {/* 🟢 แสดงเหตุผลการลาให้ครูเห็นด้วย */}
+                  {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}
+                </div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
               </div>
             ) : manageMode ? (
               <div className="bg-white rounded-xl">
@@ -1367,7 +1368,15 @@ export default function PhotoAttendanceSystem() {
                   
                   <div className="flex gap-2 ml-auto md:ml-0 w-full md:w-auto justify-end">
                     <button onClick={() => { setViewingHistoryStudent(student); setHistoryFilterMonth(getYearMonth(new Date())); }} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm font-medium"><FileText size={14} /> ดูประวัติ</button>
-                    <button onClick={() => openEditModal(student)} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"><Edit size={14} /> แก้ไข</button>
+                    
+                    {/* ปุ่มแก้ไขข้อมูล (เพิ่มตรงนี้) */}
+                    <button 
+                      onClick={() => openEditModal(student)} 
+                      className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"
+                    >
+                      <Edit size={14} /> แก้ไข
+                    </button>
+
                     <button onClick={() => deleteStudentAccount(student.id)} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-xs sm:text-sm font-medium"><UserMinus size={14} /> ลบ</button>
                   </div>
                   
