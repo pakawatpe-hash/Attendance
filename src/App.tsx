@@ -222,47 +222,33 @@ export default function PhotoAttendanceSystem() {
     return () => unsubscribe();
   }, []);
 
-  // 🟢 2. แก้ไขส่วนดึงข้อมูลให้เร็วขึ้น (ใช้ where)
-useEffect(() => {
-  if (!firebaseUser || !db) return;
-  
-  console.log("🔄 เริ่มโหลดข้อมูล...");
-  
-  // 1. ดึงข้อมูล Users
-  const usersQuery = query(collection(db, "users"));
-  const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-    const loadedUsers = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    console.log("✅ Users:", loadedUsers.length, "คน");
-    setUsers(loadedUsers);
-    setIsDataLoaded(true); 
-  });
+ // 🟢 2. แก้ไขส่วนดึงข้อมูลให้เร็วขึ้น (ใช้ where)
+  useEffect(() => {
+    if (!firebaseUser || !db) return;
+    
+    console.log("🔄 เริ่มโหลดข้อมูล...");
+    
+    // 1. ดึงข้อมูล Users
+    const usersQuery = query(collection(db, "users"));
+    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+      const loadedUsers = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log("✅ โหลด Users เสร็จ:", loadedUsers.length, "คน");
+      setUsers(loadedUsers);
+      setIsDataLoaded(true); 
+    });
 
-  // 2. ดึงข้อมูล Attendance (ดึงเฉพาะเดือนที่เลือก)
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
-  const startOfMonth = `${currentYear}-${currentMonth}-01`; 
-  const endOfMonth = `${currentYear}-${currentMonth}-31T23:59:59`; 
-  
-  console.log("📅 โหลดข้อมูลเดือน:", `${currentYear}-${currentMonth}`);
-
-  const attendanceQuery = query(
-    collection(db, "attendance"),
-    where("checkInTime", ">=", startOfMonth), 
-    where("checkInTime", "<=", endOfMonth)    
-  );
     // 2. ดึงข้อมูล Attendance (ดึงเฉพาะเดือนปัจจุบัน)
-const currentDate = new Date();
-const currentYear = currentDate.getFullYear();
-const currentMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
-const startOfMonth = `${currentYear}-${currentMonth}-01`; 
-const endOfMonth = `${currentYear}-${currentMonth}-31T23:59:59`; 
-
-console.log("📅 กำลังโหลดข้อมูลเดือน:", `${currentYear}-${currentMonth}`);
-console.log("📅 ช่วงเวลา:", startOfMonth, "ถึง", endOfMonth);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const startOfMonth = `${year}-${month}-01`; 
+    const endOfMonth = `${year}-${month}-31T23:59:59`; 
+    
+    console.log("📅 กำลังโหลดข้อมูลเดือน:", `${year}-${month}`);
+    console.log("📅 ช่วงเวลา:", startOfMonth, "→", endOfMonth);
 
     const attendanceQuery = query(
       collection(db, "attendance"),
@@ -271,28 +257,27 @@ console.log("📅 ช่วงเวลา:", startOfMonth, "ถึง", endOfMo
     );
 
     const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
-  const loadedRecords = snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      checkInTime: data.checkInTime
-        ? new Date(data.checkInTime)
-        : new Date(),
-    };
-  });
-  loadedRecords.sort(
-    (a, b) => b.checkInTime.getTime() - a.checkInTime.getTime()
-  );
-  
-  // 🟢 เพิ่ม 2 บรรทัดนี้
-  console.log("✅ โหลด Attendance เสร็จ:", loadedRecords.length, "รายการ");
-  console.log("📊 ตัวอย่างข้อมูล 3 รายการแรก:", loadedRecords.slice(0, 3));
-  
-  setAttendanceRecords(loadedRecords);
-}, (error) => {
-    console.error("❌ Firebase Error:", error);
-});
+      const loadedRecords = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          checkInTime: data.checkInTime
+            ? new Date(data.checkInTime)
+            : new Date(),
+        };
+      });
+      loadedRecords.sort(
+        (a, b) => b.checkInTime.getTime() - a.checkInTime.getTime()
+      );
+      
+      console.log("✅ โหลด Attendance เสร็จ:", loadedRecords.length, "รายการ");
+      console.log("📊 ตัวอย่างข้อมูล 3 รายการแรก:", loadedRecords.slice(0, 3));
+      
+      setAttendanceRecords(loadedRecords);
+    }, (error) => {
+      console.error("❌ Firebase Error:", error);
+    });
 
     // 3. ดึงข้อมูล Leaves (ระบบลา)
     const leavesQuery = query(collection(db, "leaves"));
@@ -303,6 +288,7 @@ console.log("📅 ช่วงเวลา:", startOfMonth, "ถึง", endOfMo
         createdAt: doc.data().createdAt ? new Date(doc.data().createdAt) : new Date()
       }));
       loadedLeaves.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      console.log("✅ โหลด Leaves เสร็จ:", loadedLeaves.length, "รายการ");
       setLeaves(loadedLeaves);
     });
 
