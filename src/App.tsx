@@ -47,7 +47,7 @@ import {
   onSnapshot,
   query,
   updateDoc,
-  where // 🟢 (1) เพิ่ม where เข้ามาเพื่อกรองข้อมูล
+  where // 🟢 1. เพิ่ม where เข้ามาเพื่อกรองข้อมูล
 } from "firebase/firestore";
 
 
@@ -189,6 +189,7 @@ export default function PhotoAttendanceSystem() {
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // 🟢 PWA: ตรวจจับอุปกรณ์
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
@@ -221,11 +222,11 @@ export default function PhotoAttendanceSystem() {
     return () => unsubscribe();
   }, []);
 
-  // 🔴🔴 (2) แก้ไข useEffect ส่วนนี้ให้โหลดเร็วขึ้น 🔴🔴
+  // 🟢 2. แก้ไขส่วนดึงข้อมูลให้เร็วขึ้น (ใช้ where)
   useEffect(() => {
     if (!firebaseUser || !db) return;
     
-    // 1. ดึงข้อมูล Users (อันนี้ไฟล์เล็ก ดึงหมดได้)
+    // 1. ดึงข้อมูล Users
     const usersQuery = query(collection(db, "users"));
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       const loadedUsers = snapshot.docs.map((doc) => ({
@@ -236,7 +237,7 @@ export default function PhotoAttendanceSystem() {
       setIsDataLoaded(true); 
     });
 
-    // 2. ดึงข้อมูล Attendance (👉 แก้ใหม่: ดึงเฉพาะเดือนที่เลือกเท่านั้น!)
+    // 2. ดึงข้อมูล Attendance (ดึงเฉพาะเดือนที่เลือก)
     const startOfMonth = `${historyFilterMonth}-01`; 
     const endOfMonth = `${historyFilterMonth}-31T23:59:59`; 
 
@@ -262,10 +263,11 @@ export default function PhotoAttendanceSystem() {
       );
       setAttendanceRecords(loadedRecords);
     }, (error) => {
-        console.error("Firebase Query Error (อาจต้องสร้าง Index):", error);
+        // ถ้าขึ้น Error ให้ดู Console แล้วกดลิงก์สร้าง Index
+        console.error("Firebase Index Error:", error);
     });
 
-    // 3. ดึงข้อมูล Leaves
+    // 3. ดึงข้อมูล Leaves (ระบบลา)
     const leavesQuery = query(collection(db, "leaves"));
     const unsubLeaves = onSnapshot(leavesQuery, (snapshot) => {
       const loadedLeaves = snapshot.docs.map((doc) => ({
@@ -282,7 +284,7 @@ export default function PhotoAttendanceSystem() {
       unsubAttendance();
       unsubLeaves();
     };
-  }, [firebaseUser, historyFilterMonth]); // 🟢 (3) สั่งให้โหลดใหม่เมื่อเปลี่ยนเดือน
+  }, [firebaseUser, historyFilterMonth]); // 🟢 โหลดใหม่เมื่อเปลี่ยนเดือน
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -303,7 +305,7 @@ export default function PhotoAttendanceSystem() {
     };
   }, [stream]);
 
-  // Function: สุ่มชื่อนักเรียน
+  // 🎲 Function: สุ่มชื่อนักเรียนพร้อม Animation
   const handleRandomStudent = () => {
     const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
     
@@ -316,8 +318,9 @@ export default function PhotoAttendanceSystem() {
     setRandomResult(null);
 
     let count = 0;
-    const maxCount = 20; 
+    const maxCount = 20; // จำนวนครั้งที่จะสลับชื่อ
     const interval = setInterval(() => {
+      // สุ่มชื่อโชว์รัวๆ
       const randomIndex = Math.floor(Math.random() * studentsInGrade.length);
       setRandomResult(studentsInGrade[randomIndex].fullName);
       
@@ -325,10 +328,11 @@ export default function PhotoAttendanceSystem() {
       if (count >= maxCount) {
         clearInterval(interval);
         setIsRolling(false);
+        // เล่นเสียงตอนจบ
         const audio = new Audio(ROLL_SOUND_URL);
-        audio.play().catch(() => {}); 
+        audio.play().catch(() => {}); // กัน error กรณี browser บล็อกเสียง
       }
-    }, 100); 
+    }, 100); // ความเร็วในการสลับ (ms)
   };
 
   const handleGenerateGroups = () => {
@@ -379,11 +383,12 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
+  // --- เปิด Modal แก้ไขข้อมูล (แยก Grade เป็น Level และ Room) ---
   const openEditModal = (student: any) => {
     setEditingStudent(student);
     
     let currentLevel = "";
-    let currentRoom = ""; 
+    let currentRoom = ""; // ถ้าเป็นค่าว่าง "" แปลว่า "ห้องเดียว"
 
     if (student.grade) {
         const parts = student.grade.split('/');
@@ -405,12 +410,14 @@ export default function PhotoAttendanceSystem() {
     });
   };
 
+  // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade) ---
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
 
+    // 🟢 Logic รวมร่าง: ถ้าเลือกห้อง (1,2) ให้เติม /x ถ้าเลือก "ห้องเดียว" ("") ให้ใช้ชื่อชั้นเพียวๆ
     const newGrade = (editForm.room && editForm.room !== "") 
         ? `${editForm.level}/${editForm.room}` 
         : editForm.level;
@@ -426,16 +433,17 @@ export default function PhotoAttendanceSystem() {
         });
         alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅ ระบบจะรีโหลดเพื่ออัปเดตข้อมูล...");
         setEditingStudent(null); 
-        window.location.reload(); 
+        window.location.reload(); // รีโหลดเพื่อให้เห็นข้อมูลห้องใหม่ทันที
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
     }
   };
 
+  // --- ฟังก์ชันขอลาหยุด (เพิ่ม isSubmitting) ---
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
-    if (isSubmittingLeave) return; 
+    if (isSubmittingLeave) return; // 🟢 กันเบิ้ล
     
     setIsSubmittingLeave(true);
 
@@ -447,9 +455,9 @@ export default function PhotoAttendanceSystem() {
         grade: currentUser.grade,
         department: currentUser.department,
         reason: leaveReason,
-        status: "pending", 
+        status: "pending", // รออนุมัติ
         createdAt: new Date().toISOString(),
-        date: new Date().toISOString().split('T')[0] 
+        date: new Date().toISOString().split('T')[0] // ลาของวันนี้
       });
       alert("ส่งคำขอลาเรียบร้อยแล้ว! รออาจารย์อนุมัติ");
       setShowLeaveModal(false);
@@ -461,6 +469,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
+  // --- 🟢 อนุมัติลา + Auto Sync ไป Google Sheet ---
   const handleLeaveAction = async (leave: any, isApproved: boolean) => {
     if (!db) return;
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
@@ -479,30 +488,33 @@ export default function PhotoAttendanceSystem() {
 
         if (!hasCheckedIn) {
             const checkInTime = new Date().toISOString();
+            // 1. บันทึกลง Firebase
             await addDoc(collection(db, "attendance"), {
                 studentName: leave.studentName,
                 username: leave.username,
                 studentNumber: leave.studentNumber,
                 grade: leave.grade,
                 department: leave.department,
-                photo: "", 
+                photo: "", // 🟢 ไม่ใช้รูป URL
                 checkInTime: checkInTime,
                 status: "leave", 
                 location: { lat: 0, lng: 0 },
                 distance: 0,
                 isOffCampus: false,
-                leaveReason: leave.reason 
+                leaveReason: leave.reason // 🟢 บันทึกเหตุผลลงไปด้วย
             });
 
+            // 2. 🟢 Auto Sync to Google Sheet ทันที
             const payload = {
                 name: leave.studentName,
                 studentNumber: leave.studentNumber,
-                studentId: leave.studentNumber, 
+                studentId: leave.studentNumber, // ถ้าไม่มีรหัสนักศึกษาใน leave object ให้ใช้ studentNumber แทน
                 status: "leave",
                 checkInTime: formatTime(new Date(checkInTime)),
                 grade: leave.grade || "ไม่ระบุชั้น"
             };
             
+            // ยิงไป Google Apps Script (แบบไม่ต้องรอผลตอบกลับก็ได้ เพื่อความเร็ว)
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -560,6 +572,7 @@ export default function PhotoAttendanceSystem() {
       );
     }
 
+    // ตรวจสอบ Level (Room ไม่ต้องบังคับ)
     if (
       registerForm.role === "student" &&
       (!registerForm.studentNumber || !registerForm.level)
@@ -577,6 +590,7 @@ export default function PhotoAttendanceSystem() {
 
     if (registerForm.role === "student") {
       newUser.studentNumber = registerForm.studentNumber;
+      // 🟢 Logic รวมร่าง
       if (registerForm.room && registerForm.room !== "") {
         newUser.grade = `${registerForm.level}/${registerForm.room}`;
       } else {
@@ -595,7 +609,7 @@ export default function PhotoAttendanceSystem() {
         fullName: "",
         role: "student",
         studentNumber: "",
-        level: "", room: "", 
+        level: "", room: "", // Reset
         grade: "",
         department: "คอมพิวเตอร์",
         secretCode: "",
@@ -714,6 +728,7 @@ export default function PhotoAttendanceSystem() {
       now.getHours() > parseInt(h) ||
       (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
 
+    // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
     const todayStr = now.toISOString().split('T')[0]; 
     const hasCheckedInToday = attendanceRecords.some((record) => {
       if (record.username !== currentUser.username) return false;
@@ -726,7 +741,7 @@ export default function PhotoAttendanceSystem() {
 
     if (hasCheckedInToday) {
       alert("❌ วันนี้คุณเช็คชื่อไปแล้วครับ! (สามารถเช็คได้วันละ 1 ครั้ง)");
-      return; 
+      return; // หยุดทำงานทันที
     }
 
     const newRecord = {
@@ -744,8 +759,11 @@ export default function PhotoAttendanceSystem() {
     };
 
     try {
+      
+      // 1. บันทึกลง Firebase
       await addDoc(collection(db, "attendance"), newRecord);
 
+      // 2. ส่งข้อมูลไป Google Sheets
       const payload = {
         name: currentUser.fullName,
         studentNumber: currentUser.studentNumber,
@@ -763,6 +781,7 @@ export default function PhotoAttendanceSystem() {
         body: JSON.stringify(payload),
       });
 
+      // 🔊 Sound Effect
       const audio = new Audio(SUCCESS_SOUND_URL);
       audio.play();
 
@@ -773,6 +792,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
+  
   const handleSyncData = async () => {
     const todayStr = new Date().toISOString().split('T')[0];
     
@@ -860,6 +880,7 @@ export default function PhotoAttendanceSystem() {
     }
   };
 
+  // --- Export CSV Function (Filtered by Month) ---
   const exportToCSV = (student: any) => {
     const studentRecords = attendanceRecords
       .filter((r) => {
@@ -920,6 +941,7 @@ export default function PhotoAttendanceSystem() {
             <h2 className="text-xl font-bold text-gray-700">
               เข้าสู่ระบบ (วิทยาลัยเทคนิคนนทบุรี)
             </h2>
+            {/* PWA Install Button */}
             {deferredPrompt && (
               <button 
                 onClick={handleInstallClick} 
@@ -1081,6 +1103,8 @@ export default function PhotoAttendanceSystem() {
                     min="1"
                   />
                 </div>
+                
+                {/* 🟢 1. เลือก Level */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ระดับชั้น</label>
                   <select value={registerForm.level} onChange={(e) => setRegisterForm({ ...registerForm, level: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -1092,6 +1116,8 @@ export default function PhotoAttendanceSystem() {
                     <option value="ปวส.2">ปวส.2</option>
                   </select>
                 </div>
+
+                {/* 🟢 2. เลือก Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
                   <select value={registerForm.room} onChange={(e) => setRegisterForm({ ...registerForm, room: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -1100,6 +1126,7 @@ export default function PhotoAttendanceSystem() {
                     <option value="2">ห้อง 2</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     แผนก
@@ -1340,8 +1367,16 @@ export default function PhotoAttendanceSystem() {
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
               <div className="text-center sm:text-left"><h1 className="text-2xl sm:text-3xl font-bold text-indigo-900">ระบบจัดการเช็คชื่อ</h1><p className="text-gray-600 mt-1">สำหรับอาจารย์: {currentUser?.fullName}</p></div>
               <div className="flex flex-wrap justify-center gap-2">
-                <button onClick={() => setShowRandomModal(true)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm sm:text-base"><Dices size={16} /> สุ่มชื่อ</button>
-                <button onClick={() => setShowGroupModal(true)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm sm:text-base"><LayoutGrid size={16} /> จัดกลุ่ม</button>
+                {/* 🎲 ปุ่มสุ่ม */}
+                <button onClick={() => setShowRandomModal(true)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm sm:text-base">
+                   <Dices size={16} /> สุ่มชื่อ
+                </button>
+                
+                {/* 👥 ปุ่มจัดกลุ่ม */}
+                <button onClick={() => setShowGroupModal(true)} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm sm:text-base">
+                   <LayoutGrid size={16} /> จัดกลุ่ม
+                </button>
+                
                 <button onClick={handleSyncData} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm sm:text-base"><RefreshCw size={16} /> ซิงค์ข้อมูลวันนี้</button>
                 <button onClick={() => setManageMode(!manageMode)} className={`flex items-center gap-2 px-3 py-2 sm:px-4 rounded-lg font-medium transition-colors text-sm sm:text-base ${manageMode ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-700 hover:bg-blue-100"}`}>{manageMode ? <Users size={16} /> : <Settings size={16} />}{manageMode ? "กลับไปเช็คชื่อ" : "จัดการนักเรียน"}</button>
                 <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm sm:text-base"><LogOut size={16} /> ออกจากระบบ</button>
