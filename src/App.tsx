@@ -292,6 +292,36 @@ useEffect(() => {
     unsubLeaves();
   };
 }, [firebaseUser]); // 🟢 โหลดครั้งเดียวตอนเริ่มต้น
+  // 🟢 3. useEffect สำหรับอาจารย์ดูข้อมูลย้อนหลัง
+useEffect(() => {
+  if (!firebaseUser || !db || !currentUser) return;
+  if (currentUser.role !== "teacher") return; // ถ้าไม่ใช่ครู ก็ไม่ต้องทำ
+  
+  const targetDate = filterDate; // วันที่ครูเลือก
+  
+  console.log("🔄 อาจารย์ดูข้อมูลวันที่:", targetDate);
+  
+  const attendanceQuery = query(
+    collection(db, "attendance"),
+    where("checkInTime", ">=", targetDate),
+    where("checkInTime", "<=", targetDate + "T23:59:59")
+  );
+
+  const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
+    const loadedRecords = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        checkInTime: data.checkInTime ? new Date(data.checkInTime) : new Date(),
+      };
+    });
+    loadedRecords.sort((a, b) => b.checkInTime.getTime() - a.checkInTime.getTime());
+    setAttendanceRecords(loadedRecords);
+  });
+
+  return () => unsubAttendance();
+}, [firebaseUser, currentUser, filterDate]);
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
