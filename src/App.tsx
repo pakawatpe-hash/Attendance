@@ -918,7 +918,6 @@ useEffect(() => {
   } catch (err: any) {
     console.error("❌ Error:", err);
     alert("⚠️ เกิดข้อผิดพลาด: " + err.message + "\n\nกรุณาลองใหม่อีกครั้ง");
-  }
 };
 
   
