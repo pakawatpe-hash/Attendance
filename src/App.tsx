@@ -747,82 +747,7 @@ useEffect(() => {
   };
 
 
-  const submitAttendance = async () => {
-    if (!db) return;
-    if (!capturedPhoto) {
-      alert("กรุณาถ่ายรูปก่อนเช็คชื่อ");
-      return;
-    }
-
-    const isOffCampus = distanceToCollege
-      ? distanceToCollege > MAX_DISTANCE_METERS
-      : true;
-
-    if (isOffCampus) {
-      alert("❌ ไม่สามารถเช็คชื่อได้!\n\nกรุณากดอนุญาตการเปิดตำแหน่ง");
-      return;
-    }
-
-    const now = new Date();
-    const [h, m] = lateTime.split(":");
-    const isLate =
-      now.getHours() > parseInt(h) ||
-      (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
-
-    // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
-    const todayStr = now.toISOString().split('T')[0]; 
-    const hasCheckedInToday = attendanceRecords.some((record) => {
-      if (record.username !== currentUser.username) return false;
-      const recordDate = record.checkInTime instanceof Date 
-        ? record.checkInTime.toISOString().split('T')[0]
-        : new Date(record.checkInTime).toISOString().split('T')[0];
-      
-      return recordDate === todayStr;
-    });
-
-    if (hasCheckedInToday) {
-      alert("❌ วันนี้คุณเช็คชื่อไปแล้วครับ! (สามารถเช็คได้วันละ 1 ครั้ง)");
-      return; // หยุดทำงานทันที
-    }
-
-    const newRecord = {
-      studentName: currentUser.fullName,
-      username: currentUser.username,
-      studentNumber: currentUser.studentNumber,
-      grade: currentUser.grade,
-      department: currentUser.department,
-      photo: capturedPhoto,
-      checkInTime: now.toISOString(),
-      status: isLate ? "late" : "present",
-      location: currentLocation,
-      distance: distanceToCollege,
-      isOffCampus: isOffCampus,
-    };
-
-    try {
-      
-      // 1. บันทึกลง Firebase
-      await addDoc(collection(db, "attendance"), newRecord);
-
-      // 2. ส่งข้อมูลไป Google Sheets
-      const payload = {
-        name: currentUser.fullName,
-        studentNumber: currentUser.studentNumber,
-        studentId: currentUser.studentNumber,
-        status: isLate ? "late" : "present",
-        checkInTime: formatTime(now),
-        grade: currentUser.grade || "ไม่ระบุชั้น"
-      };
-
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      // 🔊 Sound const submitAttendance = async () => {
+const submitAttendance = async () => {
   if (!db) return;
   if (!capturedPhoto) {
     alert("กรุณาถ่ายรูปก่อนเช็คชื่อ");
@@ -910,7 +835,7 @@ useEffect(() => {
 
     // 🔊 Sound Effect
     const audio = new Audio(SUCCESS_SOUND_URL);
-    audio.play();
+    audio.play().catch(() => {}); // Ignore if browser blocks audio
 
     setCapturedPhoto(null);
     alert("✅ เช็คชื่อสำเร็จ! บันทึกลงฐานข้อมูลและส่งแจ้งเตือนแล้ว");
@@ -918,6 +843,7 @@ useEffect(() => {
   } catch (err: any) {
     console.error("❌ Error:", err);
     alert("⚠️ เกิดข้อผิดพลาด: " + err.message + "\n\nกรุณาลองใหม่อีกครั้ง");
+  }
 };
 
   
