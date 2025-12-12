@@ -116,6 +116,8 @@ export default function PhotoAttendanceSystem() {
 
   const [manageMode, setManageMode] = useState(false);
   const [viewingHistoryStudent, setViewingHistoryStudent] = useState<any>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [studentFullHistory, setStudentFullHistory] = useState<any[]>([]);
 
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ fullName: "", studentNumber: "", level: "", room: "", department: "" });
@@ -1498,111 +1500,325 @@ const submitAttendance = async () => {
               </div>
             </div>
 
-            {viewingHistoryStudent ? (
-              <div className="bg-white rounded-xl">
-                <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-700 flex items-center gap-2"><FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" /> ประวัติ: {viewingHistoryStudent.fullName}</h3>
-                  <div className="flex items-center gap-2 w-full sm:w-auto"><div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border"><Calendar size={16} className="text-gray-500" /><span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span><input type="month" value={historyFilterMonth} onChange={(e) => setHistoryFilterMonth(e.target.value)} className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" /></div><button onClick={() => exportToCSV(viewingHistoryStudent)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" title="Export to CSV"><FileSpreadsheet size={16} /> Export</button><button onClick={() => setViewingHistoryStudent(null)} className="p-2 hover:bg-gray-100 rounded-full transition"><X size={20} className="text-gray-500" /></button></div>
+         {viewingHistoryStudent ? (
+  <div className="bg-white rounded-xl">
+    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <h3 className="text-base sm:text-lg font-bold text-gray-700 flex items-center gap-2">
+        <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" /> 
+        ประวัติ: {viewingHistoryStudent.fullName}
+      </h3>
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-lg border">
+          <Calendar size={16} className="text-gray-500" />
+          <span className="text-xs sm:text-sm font-bold text-gray-700 whitespace-nowrap">เดือน:</span>
+          <input 
+            type="month" 
+            value={historyFilterMonth} 
+            onChange={(e) => setHistoryFilterMonth(e.target.value)} 
+            className="bg-transparent text-xs sm:text-sm outline-none w-28 sm:w-auto" 
+          />
+        </div>
+        <button 
+          onClick={() => exportToCSV(viewingHistoryStudent)} 
+          className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap" 
+          title="Export to CSV"
+        >
+          <FileSpreadsheet size={16} /> Export
+        </button>
+        <button 
+          onClick={() => {
+            setViewingHistoryStudent(null);
+            setStudentFullHistory([]);
+          }} 
+          className="p-2 hover:bg-gray-100 rounded-full transition"
+        >
+          <X size={20} className="text-gray-500" />
+        </button>
+      </div>
+    </div>
+
+    {isLoadingHistory ? (
+      <div className="flex flex-col items-center justify-center py-16 bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200">
+        <RefreshCw className="w-16 h-16 text-indigo-600 animate-spin mb-4" />
+        <p className="text-indigo-700 font-bold text-xl">กำลังดาวน์โหลดประวัติ...</p>
+        <p className="text-indigo-500 text-sm mt-2">กรุณารอสักครู่</p>
+      </div>
+    ) : (
+      <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+        {studentFullHistory.filter((r) => {
+          const recordMonth = getYearMonth(new Date(r.checkInTime));
+          return recordMonth === historyFilterMonth;
+        }).length === 0 ? (
+          <p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>
+        ) : (
+          studentFullHistory
+            .filter((r) => {
+              const recordMonth = getYearMonth(new Date(r.checkInTime));
+              return recordMonth === historyFilterMonth;
+            })
+            .map((record) => (
+              <div 
+                key={record.id} 
+                className={`flex items-center gap-3 p-3 rounded-lg border ${
+                  record.status === "late" 
+                    ? "bg-orange-50 border-orange-200" 
+                    : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")
+                }`}
+              >
+                <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">
+                  {record.status === "leave" ? (
+                    <div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
+                      <User className="text-blue-500 w-5 h-5" />
+                    </div>
+                  ) : (
+                    <img src={record.photo} className="w-full h-full rounded object-cover border" />
+                  )}
                 </div>
-                <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).sort((a, b) => b.checkInTime - a.checkInTime).map((record) => (<div key={record.id} className={`flex items-center gap-3 p-3 rounded-lg border ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}><div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">{record.status === "leave" ? (<div className="w-full h-full rounded-full bg-blue-100 flex items-center justify-center border border-blue-200"><User className="text-blue-500 w-5 h-5" /></div>) : (<img src={record.photo} className="w-full h-full rounded object-cover border" />)}</div><div className="flex-1 min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base">{formatDate(record.checkInTime)}</div><div className="text-xs text-gray-500">{formatTime(record.checkInTime)} น.</div>
-                  {/* 🟢 แสดงเหตุผลการลาให้ครูเห็นด้วย */}
-                  {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>)}
-                </div><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div></div>))}{attendanceRecords.filter((r) => { const rMonth = getYearMonth(new Date(r.checkInTime)); return (r.username === viewingHistoryStudent.username && rMonth === historyFilterMonth); }).length === 0 && (<p className="text-center text-gray-400 py-8">ไม่มีประวัติในเดือนนี้</p>)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-gray-800 text-sm sm:text-base">
+                    {formatDate(record.checkInTime)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatTime(record.checkInTime)} น.
+                  </div>
+                  {record.status === "leave" && record.leaveReason && (
+                    <div className="text-xs text-blue-600 mt-0.5">เหตุผล: {record.leaveReason}</div>
+                  )}
+                </div>
+                <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${
+                  record.status === "late" 
+                    ? "bg-orange-200 text-orange-800" 
+                    : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")
+                }`}>
+                  {record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}
+                </div>
               </div>
-            ) : manageMode ? (
-              <div className="bg-white rounded-xl">
-                <div className="mb-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-4 flex items-center gap-2"><Settings className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" /> จัดการบัญชีนักเรียน ({activeGrade})</h3>
-                  <div className="flex flex-wrap gap-2 mb-6">{uniqueGrades.length > 0 ? (uniqueGrades.map((g) => (<button key={g} onClick={() => setSelectedGrade(g)} className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full font-medium transition-all text-sm sm:text-base ${activeGrade === g ? "bg-blue-600 text-white shadow" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{g}</button>))) : (<div className="text-gray-400 italic">ไม่มีข้อมูลนักเรียน</div>)}</div>
-                  <div className="grid gap-3 sm:gap-4">{users.filter((u) => u.role === "student" && u.grade === activeGrade).sort((a, b) => a.studentNumber - b.studentNumber).map((student) => (<div key={student.id} className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 gap-3"><div className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:opacity-80 transition" onClick={() => { setViewingHistoryStudent(student); setHistoryFilterMonth(getYearMonth(new Date())); }} title="กดเพื่อดูประวัติ"><div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm sm:text-base shrink-0">{student.studentNumber}</div><div className="min-w-0"><div className="font-bold text-gray-800 text-sm sm:text-base truncate">{student.fullName}</div><div className="text-xs sm:text-sm text-gray-500">User: {student.username}</div></div></div>
-                  
-                  <div className="flex gap-2 ml-auto md:ml-0 w-full md:w-auto justify-end">
-                    <button onClick={() => { setViewingHistoryStudent(student); setHistoryFilterMonth(getYearMonth(new Date())); }} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm font-medium"><FileText size={14} /> ดูประวัติ</button>
-                    
-                    {/* ปุ่มแก้ไขข้อมูล (เพิ่มตรงนี้) */}
-                    <button 
-                      onClick={() => openEditModal(student)} 
-                      className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"
-                    >
-                      <Edit size={14} /> แก้ไข
+            ))
+        )}
+      </div>
+    )}
+  </div>
+) : manageMode ? (
+  <div className="bg-white rounded-xl">
+    <div className="mb-6">
+      <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+        <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" /> 
+        จัดการบัญชีนักเรียน ({activeGrade})
+      </h3>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {uniqueGrades.length > 0 ? (
+          uniqueGrades.map((g) => (
+            <button 
+              key={g} 
+              onClick={() => setSelectedGrade(g)} 
+              className={`px-4 py-1.5 sm:px-5 sm:py-2 rounded-full font-medium transition-all text-sm sm:text-base ${
+                activeGrade === g ? "bg-blue-600 text-white shadow" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {g}
+            </button>
+          ))
+        ) : (
+          <div className="text-gray-400 italic">ไม่มีข้อมูลนักเรียน</div>
+        )}
+      </div>
+      <div className="grid gap-3 sm:gap-4">
+        {users
+          .filter((u) => u.role === "student" && u.grade === activeGrade)
+          .sort((a, b) => a.studentNumber - b.studentNumber)
+          .map((student) => (
+            <div 
+              key={student.id} 
+              className="flex flex-col md:flex-row md:items-center justify-between bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 gap-3"
+            >
+              <div 
+                className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:opacity-80 transition" 
+                onClick={() => { 
+                  loadFullStudentHistory(student); 
+                  setHistoryFilterMonth(getYearMonth(new Date())); 
+                }} 
+                title="กดเพื่อดูประวัติ"
+              >
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm sm:text-base shrink-0">
+                  {student.studentNumber}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-gray-800 text-sm sm:text-base truncate">
+                    {student.fullName}
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-500">
+                    User: {student.username}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 ml-auto md:ml-0 w-full md:w-auto justify-end">
+                <button onClick={() => { 
+                          loadFullStudentHistory(student); 
+                              setHistoryFilterMonth(getYearMonth(new Date())); 
+                                }} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 text-xs sm:text-sm font-medium">
+                            <FileText size={14} /> ดูประวัติ
                     </button>
+                
+                <button 
+                  onClick={() => openEditModal(student)} 
+                  className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 text-xs sm:text-sm font-medium"
+                >
+                  <Edit size={14} /> แก้ไข
+                </button>
 
-                    <button onClick={() => deleteStudentAccount(student.id)} className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-xs sm:text-sm font-medium"><UserMinus size={14} /> ลบ</button>
-                  </div>
-                  
-                  </div>))}{users.filter((u) => u.role === "student" && u.grade === activeGrade).length === 0 && (<p className="text-center text-gray-400 py-4">ไม่มีนักเรียนในชั้นนี้</p>)}</div>
+                <button 
+                  onClick={() => deleteStudentAccount(student.id)} 
+                  className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-xs sm:text-sm font-medium"
+                >
+                  <UserMinus size={14} /> ลบ
+                </button>
+              </div>
+            </div>
+          ))
+        }
+        {users.filter((u) => u.role === "student" && u.grade === activeGrade).length === 0 && (
+          <p className="text-center text-gray-400 py-4">ไม่มีนักเรียนในชั้นนี้</p>
+        )}
+      </div>
+    </div>
+  </div>
+) : (
+  <>
+    <div className="mb-6 overflow-x-auto pb-2">
+      <h3 className="text-xs sm:text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wider">
+        เลือกระดับชั้น
+      </h3>
+      <div className="flex gap-2">
+        {uniqueGrades.length > 0 ? (
+          uniqueGrades.map((g) => (
+            <button 
+              key={g} 
+              onClick={() => setSelectedGrade(g)} 
+              className={`px-4 py-1.5 sm:px-6 sm:py-2 rounded-full font-medium transition-all whitespace-nowrap text-sm sm:text-base ${
+                activeGrade === g 
+                  ? "bg-indigo-600 text-white shadow-md transform scale-105" 
+                  : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50"
+              }`}
+            >
+              {g}
+            </button>
+          ))
+        ) : (
+          <div className="text-gray-400 italic text-sm">ยังไม่มีข้อมูลนักเรียนในระบบ</div>
+        )}
+      </div>
+    </div>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-6 bg-white p-3 rounded-lg border w-full sm:w-fit">
+      <div className="flex items-center gap-2">
+        <Calendar size={18} className="text-indigo-600" />
+        <span className="text-sm font-bold text-gray-700 whitespace-nowrap">เลือกวันที่ดูข้อมูล:</span>
+      </div>
+      <input 
+        type="date" 
+        value={filterDate} 
+        onChange={(e) => setFilterDate(e.target.value)} 
+        className="outline-none text-indigo-600 font-bold bg-transparent cursor-pointer text-sm sm:text-base w-full sm:w-auto" 
+      />
+    </div>
+    {activeGrade && (
+      <div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-indigo-900 flex items-center gap-2">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด ({activeGrade})
+          </h2>
+          <div className="text-xs sm:text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">
+            วันที่: {new Date(filterDate).toLocaleDateString("th-TH", { 
+              day: "numeric", 
+              month: "long", 
+              year: "numeric", 
+            })}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-blue-500">
+            <div className="text-xl sm:text-3xl font-bold text-blue-900 mb-1">{gradeRecs.length}</div>
+            <div className="text-xs sm:text-sm font-medium text-blue-600">มาเรียน</div>
+          </div>
+          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-green-500">
+            <div className="text-xl sm:text-3xl font-bold text-green-900 mb-1">{gradePresent}</div>
+            <div className="text-xs sm:text-sm font-medium text-green-600">มาตรงเวลา</div>
+          </div>
+          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-orange-500">
+            <div className="text-xl sm:text-3xl font-bold text-orange-900 mb-1">{gradeLate}</div>
+            <div className="text-xs sm:text-sm font-medium text-orange-600">มาสาย</div>
+          </div>
+          <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-pink-500">
+            <div className="text-xl sm:text-3xl font-bold text-pink-900 mb-1">{gradeLeave}</div>
+            <div className="text-xs sm:text-sm font-medium text-pink-600">ลา</div>
+          </div>
+        </div>
+      </div>
+    )}
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-gray-50 p-4 rounded-lg">
+      <div className="flex items-center gap-2">
+        <Settings className="w-5 h-5 text-gray-600" />
+        <label className="text-sm font-medium text-gray-700 whitespace-nowrap">กำหนดเวลาสาย:</label>
+      </div>
+      <div className="flex w-full sm:w-auto items-center justify-between gap-4">
+        <input 
+          type="time" 
+          value={lateTime} 
+          onChange={(e) => setLateTime(e.target.value)} 
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto" 
+        />
+        <div className="ml-auto sm:ml-0 flex items-center gap-2 text-base sm:text-lg font-semibold text-indigo-700">
+          <Clock className="w-5 h-5" /> {formatTime(currentTime)}
+        </div>
+      </div>
+    </div>
+    
+    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6 border border-yellow-200">
+      <h2 className="text-lg sm:text-xl font-bold text-yellow-800 mb-4 flex items-center gap-2">
+        <FileQuestion className="w-5 h-5" /> รายการขอลาหยุด
+      </h2>
+      {leaves.filter(l => l.status === 'pending').length === 0 ? (
+        <div className="text-center py-4 text-gray-400">ไม่มีคำขอลาหยุด</div>
+      ) : (
+        <div className="space-y-3">
+          {leaves.filter(l => l.status === 'pending').map(leave => (
+            <div key={leave.id} className="p-3 border rounded-lg bg-yellow-50">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-bold text-gray-800">
+                    {leave.studentName} <span className="text-xs text-gray-500">({leave.grade})</span>
+                  </h4>
+                  <p className="text-sm text-gray-600">เหตุผล: {leave.reason}</p>
+                  <p className="text-xs text-gray-400 mt-1">{formatDate(leave.createdAt)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleLeaveAction(leave, true)} 
+                    className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600"
+                  >
+                    <CheckCircle size={18} />
+                  </button>
+                  <button 
+                    onClick={() => handleLeaveAction(leave, false)} 
+                    className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
+                  >
+                    <XCircle size={18} />
+                  </button>
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="mb-6 overflow-x-auto pb-2"><h3 className="text-xs sm:text-sm font-semibold text-gray-500 mb-2 uppercase tracking-wider">เลือกระดับชั้น</h3><div className="flex gap-2">{uniqueGrades.length > 0 ? (uniqueGrades.map((g) => (<button key={g} onClick={() => setSelectedGrade(g)} className={`px-4 py-1.5 sm:px-6 sm:py-2 rounded-full font-medium transition-all whitespace-nowrap text-sm sm:text-base ${activeGrade === g ? "bg-indigo-600 text-white shadow-md transform scale-105" : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50"}`}>{g}</button>))) : (<div className="text-gray-400 italic text-sm">ยังไม่มีข้อมูลนักเรียนในระบบ</div>)}</div></div>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-6 bg-white p-3 rounded-lg border w-full sm:w-fit"><div className="flex items-center gap-2"><Calendar size={18} className="text-indigo-600" /><span className="text-sm font-bold text-gray-700 whitespace-nowrap">เลือกวันที่ดูข้อมูล:</span></div><input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="outline-none text-indigo-600 font-bold bg-transparent cursor-pointer text-sm sm:text-base w-full sm:w-auto" /></div>
-                {activeGrade && (
-                  <div className="bg-indigo-50 p-4 sm:p-6 rounded-xl border border-indigo-100 mb-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-                        <h2 className="text-lg sm:text-xl font-bold text-indigo-900 flex items-center gap-2"><Users className="w-5 h-5 sm:w-6 sm:h-6" /> สรุปยอด ({activeGrade})</h2>
-                        <div className="text-xs sm:text-sm text-indigo-600 bg-white px-3 py-1 rounded-full shadow-sm font-bold">วันที่: {new Date(filterDate).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", })}</div>
-                    </div>
-                    {/* 🟢 แก้ตรงนี้: เพิ่มช่องลา (และปรับ Grid เป็น 4 ช่อง ถ้าหน้าจอใหญ่) */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-blue-500">
-                            <div className="text-xl sm:text-3xl font-bold text-blue-900 mb-1">{gradeRecs.length}</div>
-                            <div className="text-xs sm:text-sm font-medium text-blue-600">มาเรียน</div>
-                        </div>
-                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-green-500">
-                            <div className="text-xl sm:text-3xl font-bold text-green-900 mb-1">{gradePresent}</div>
-                            <div className="text-xs sm:text-sm font-medium text-green-600">มาตรงเวลา</div>
-                        </div>
-                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-orange-500">
-                            <div className="text-xl sm:text-3xl font-bold text-orange-900 mb-1">{gradeLate}</div>
-                            <div className="text-xs sm:text-sm font-medium text-orange-600">มาสาย</div>
-                        </div>
-                        {/* 🟢 เพิ่มกล่องสีชมพูสำหรับคนลา */}
-                        <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm text-center border-l-4 border-pink-500">
-                            <div className="text-xl sm:text-3xl font-bold text-pink-900 mb-1">{gradeLeave}</div>
-                            <div className="text-xs sm:text-sm font-medium text-pink-600">ลา</div>
-                        </div>
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-gray-50 p-4 rounded-lg"><div className="flex items-center gap-2"><Settings className="w-5 h-5 text-gray-600" /><label className="text-sm font-medium text-gray-700 whitespace-nowrap">กำหนดเวลาสาย:</label></div><div className="flex w-full sm:w-auto items-center justify-between gap-4"><input type="time" value={lateTime} onChange={(e) => setLateTime(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full sm:w-auto" /><div className="ml-auto sm:ml-0 flex items-center gap-2 text-base sm:text-lg font-semibold text-indigo-700"><Clock className="w-5 h-5" /> {formatTime(currentTime)}</div></div></div>
-                
-                {/* เมนูใหม่: รายการขอลาหยุด */}
-                <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6 border border-yellow-200">
-                   <h2 className="text-lg sm:text-xl font-bold text-yellow-800 mb-4 flex items-center gap-2">
-                     <FileQuestion className="w-5 h-5" /> รายการขอลาหยุด
-                   </h2>
-                   {leaves.filter(l => l.status === 'pending').length === 0 ? (
-                     <div className="text-center py-4 text-gray-400">ไม่มีคำขอลาหยุด</div>
-                   ) : (
-                     <div className="space-y-3">
-                        {leaves.filter(l => l.status === 'pending').map(leave => (
-                          <div key={leave.id} className="p-3 border rounded-lg bg-yellow-50">
-                             <div className="flex justify-between items-start">
-                                <div>
-                                   <h4 className="font-bold text-gray-800">{leave.studentName} <span className="text-xs text-gray-500">({leave.grade})</span></h4>
-                                   <p className="text-sm text-gray-600">เหตุผล: {leave.reason}</p>
-                                   <p className="text-xs text-gray-400 mt-1">{formatDate(leave.createdAt)}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                   <button onClick={() => handleLeaveAction(leave, true)} className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600"><CheckCircle size={18} /></button>
-                                   <button onClick={() => handleLeaveAction(leave, false)} className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"><XCircle size={18} /></button>
-                                </div>
-                             </div>
-                          </div>
-                        ))}
-                     </div>
-                   )}
-                </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
 
-               <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6">
-  <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-    <span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg">
-      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-    </span> 
-    รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})
-  </h2>
-  
+    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mt-6">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span className="bg-indigo-100 text-indigo-800 p-1.5 rounded-lg">
+          <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+        </span> 
+        รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})
+      </h2>
   {/* 🟢 Loading UI - แสดงตอนกำลังโหลดข้อมูล */}
   {isLoadingTeacherData ? (
     <div className="flex flex-col items-center justify-center py-12 bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200 animate-pulse">
