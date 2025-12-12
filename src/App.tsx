@@ -438,7 +438,41 @@ useEffect(() => {
       setExpandedRecordId(id);
     }
   };
-
+// 🟢 ฟังก์ชันโหลดประวัติทั้งหมดของนักเรียน
+const loadFullStudentHistory = async (student: any) => {
+  if (!db || !student) return;
+  
+  setIsLoadingHistory(true);
+  setViewingHistoryStudent(student);
+  setStudentFullHistory([]);
+  
+  try {
+    const historyQuery = query(
+      collection(db, "attendance"),
+      where("username", "==", student.username)
+    );
+    
+    onSnapshot(historyQuery, (snapshot) => {
+      const records = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          checkInTime: data.checkInTime ? new Date(data.checkInTime) : new Date(),
+        };
+      });
+      
+      records.sort((a, b) => b.checkInTime.getTime() - a.checkInTime.getTime());
+      setStudentFullHistory(records);
+      setIsLoadingHistory(false);
+    });
+    
+  } catch (err) {
+    console.error("Error loading history:", err);
+    setIsLoadingHistory(false);
+    alert("เกิดข้อผิดพลาดในการโหลดประวัติ");
+  }
+};
   // --- เปิด Modal แก้ไขข้อมูล (แยก Grade เป็น Level และ Room) ---
   const openEditModal = (student: any) => {
     setEditingStudent(student);
