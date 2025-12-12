@@ -188,7 +188,8 @@ export default function PhotoAttendanceSystem() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isLoadingTeacherData, setIsLoadingTeacherData] = useState(false); // 🟢 เพิ่มบรรทัดนี้
+  const [isLoadingTeacherData, setIsLoadingTeacherData] = useState(false); // 
+  const [isLoadingStudentHistory, setIsLoadingStudentHistory] = useState(true); // 
   // 🟢 PWA: ตรวจจับอุปกรณ์
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
@@ -222,7 +223,7 @@ export default function PhotoAttendanceSystem() {
     return () => unsubscribe();
   }, []);
 
- // 🟢 2. แก้ไขส่วนดึงข้อมูลให้เร็วขึ้น - โหลดเฉพาะวันนี้สำหรับนักเรียน
+// 🟢 2. แก้ไขส่วนดึงข้อมูลให้เร็วขึ้น - โหลดเฉพาะข้อมูลของตัวเอง
 useEffect(() => {
   if (!firebaseUser || !db) return;
   
@@ -240,15 +241,27 @@ useEffect(() => {
     setIsDataLoaded(true); 
   });
 
-  // 2. ดึงข้อมูล Attendance - โหลดเฉพาะวันนี้ก่อน เพื่อความเร็ว
-  const todayStr = new Date().toISOString().split('T')[0]; 
-  console.log("📅 กำลังโหลดข้อมูลวันนี้:", todayStr);
-
-  const attendanceQuery = query(
-    collection(db, "attendance"),
-    where("checkInTime", ">=", todayStr), 
-    where("checkInTime", "<=", todayStr + "T23:59:59")    
-  );
+  // 2. ดึงข้อมูล Attendance - โหลดตามบทบาท
+  let attendanceQuery;
+  
+  // 🟢 ถ้ามี currentUser แล้ว ให้เช็คว่าเป็นนักเรียนหรือไม่
+  if (currentUser && currentUser.role === "student") {
+    // นักเรียน: โหลดเฉพาะของตัวเอง
+    attendanceQuery = query(
+      collection(db, "attendance"),
+      where("username", "==", currentUser.username)
+    );
+    console.log("👨‍🎓 นักเรียน: โหลดเฉพาะประวัติของตัวเอง");
+  } else {
+    // อาจารย์: โหลดข้อมูลวันนี้
+    const todayStr = new Date().toISOString().split('T')[0]; 
+    attendanceQuery = query(
+      collection(db, "attendance"),
+      where("checkInTime", ">=", todayStr), 
+      where("checkInTime", "<=", todayStr + "T23:59:59")    
+    );
+    console.log("👨‍🏫 อาจารย์: โหลดข้อมูลวันนี้");
+  }
 
   const unsubAttendance = onSnapshot(attendanceQuery, (snapshot) => {
     const loadedRecords = snapshot.docs.map((doc) => {
@@ -266,11 +279,11 @@ useEffect(() => {
     );
     
     console.log("✅ โหลด Attendance เสร็จ:", loadedRecords.length, "รายการ");
-    console.log("📊 ตัวอย่างข้อมูล 3 รายการแรก:", loadedRecords.slice(0, 3));
-    
     setAttendanceRecords(loadedRecords);
+    setIsLoadingStudentHistory(false); // 🟢 โหลดเสร็จแล้ว
   }, (error) => {
     console.error("❌ Firebase Error:", error);
+    setIsLoadingStudentHistory(false); // 🟢 ถ้า error ก็หยุด loading
   });
 
   // 3. ดึงข้อมูล Leaves (ระบบลา)
@@ -291,7 +304,7 @@ useEffect(() => {
     unsubAttendance();
     unsubLeaves();
   };
-}, [firebaseUser]); // 🟢 โหลดครั้งเดียวตอนเริ่มต้น
+}, [firebaseUser, currentUser]); // 🟢 เพิ่ม currentUser เป็น dependency
 useEffect(() => {
   if (!firebaseUser || !db || !currentUser) return;
   if (currentUser.role !== "teacher") return;
@@ -1358,29 +1371,80 @@ const submitAttendance = async () => {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">ประวัติการเช็คชื่อของฉัน</h2>
-            <div className="space-y-3">
-              {attendanceRecords
-                .filter((r) => r.username === currentUser?.username)
-                .map((record) => (
-                  <div key={record.id} onClick={() => toggleExpandRecord(record.id)} className={`rounded-lg border-2 overflow-hidden transition-all cursor-pointer hover:shadow-md ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}>
-                    <div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4">
-                      {record.status === "leave" ? (<div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center"><User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" /></div>) : (<img src={record.photo} alt={record.studentName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white shadow-sm shrink-0" />)}
-                      <div className="flex-1 min-w-0">
-                          <div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5">{formatDate(record.checkInTime)}</div>
-                          <div className="text-xs sm:text-sm text-gray-600">{formatTime(record.checkInTime)} น.</div>
-                          <div className={`text-[10px] sm:text-xs mt-1 flex items-center gap-1 ${record.isOffCampus ? "text-red-500" : "text-green-600"}`}><MapPin size={10} />{record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} ({Math.round(record.distance || 0)} ม.)</div>
-                          {record.status === "leave" && record.leaveReason && (<div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block"><strong>เหตุผล:</strong> {record.leaveReason}</div>)}
-                      </div>
-                      <div className="text-right flex flex-col items-end shrink-0"><div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold mb-1 whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}</div>{expandedRecordId === record.id ? (<ChevronUp size={16} className="text-gray-400" />) : (<ChevronDown size={16} className="text-gray-400" />)}</div>
-                    </div>
-                    {expandedRecordId === record.id && (<div className="bg-white p-4 border-t border-gray-100 space-y-3 animate-fade-in"><div className="flex justify-center">
-                        {record.status === "leave" ? (<div className="flex flex-col items-center justify-center py-4 bg-blue-50 rounded-lg w-full"><User className="text-blue-300 w-16 h-16 mb-2" /><p className="text-blue-500 font-medium">ลากิจ/ลาป่วย</p></div>) : (<img src={record.photo} className="rounded-lg max-h-48 object-contain shadow-sm" />)}
-                    </div></div>)}
-                  </div>
-                ))}
-            </div>
+  <h2 className="text-xl font-bold text-gray-800 mb-4">ประวัติการเช็คชื่อของฉัน</h2>
+  
+  {/* 🟢 Loading UI */}
+  {isLoadingStudentHistory ? (
+    <div className="flex flex-col items-center justify-center py-12 bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200">
+      <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+      <p className="text-indigo-700 font-semibold text-lg">กำลังโหลดประวัติ...</p>
+      <p className="text-indigo-500 text-sm mt-2">โปรดรอสักครู่</p>
+    </div>
+  ) : (
+    <div className="space-y-3">
+      {attendanceRecords
+        .filter((r) => r.username === currentUser?.username)
+        .length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <p>ยังไม่มีประวัติการเช็คชื่อ</p>
           </div>
+        ) : (
+          attendanceRecords
+            .filter((r) => r.username === currentUser?.username)
+            .map((record) => (
+              <div key={record.id} onClick={() => toggleExpandRecord(record.id)} className={`rounded-lg border-2 overflow-hidden transition-all cursor-pointer hover:shadow-md ${record.status === "late" ? "bg-orange-50 border-orange-200" : (record.status === "leave" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200")}`}>
+                <div className="flex items-center p-3 sm:p-4 gap-3 sm:gap-4">
+                  {record.status === "leave" ? (
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center">
+                      <User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  ) : (
+                    <img src={record.photo} alt={record.studentName} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 sm:border-4 border-white shadow-sm shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5">{formatDate(record.checkInTime)}</div>
+                    <div className="text-xs sm:text-sm text-gray-600">{formatTime(record.checkInTime)} น.</div>
+                    <div className={`text-[10px] sm:text-xs mt-1 flex items-center gap-1 ${record.isOffCampus ? "text-red-500" : "text-green-600"}`}>
+                      <MapPin size={10} />
+                      {record.isOffCampus ? "นอกพื้นที่" : "ในวิทยาลัย"} ({Math.round(record.distance || 0)} ม.)
+                    </div>
+                    {record.status === "leave" && record.leaveReason && (
+                      <div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
+                        <strong>เหตุผล:</strong> {record.leaveReason}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right flex flex-col items-end shrink-0">
+                    <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold mb-1 whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>
+                      {record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทัน")}
+                    </div>
+                    {expandedRecordId === record.id ? (
+                      <ChevronUp size={16} className="text-gray-400" />
+                    ) : (
+                      <ChevronDown size={16} className="text-gray-400" />
+                    )}
+                  </div>
+                </div>
+                {expandedRecordId === record.id && (
+                  <div className="bg-white p-4 border-t border-gray-100 space-y-3 animate-fade-in">
+                    <div className="flex justify-center">
+                      {record.status === "leave" ? (
+                        <div className="flex flex-col items-center justify-center py-4 bg-blue-50 rounded-lg w-full">
+                          <User className="text-blue-300 w-16 h-16 mb-2" />
+                          <p className="text-blue-500 font-medium">ลากิจ/ลาป่วย</p>
+                        </div>
+                      ) : (
+                        <img src={record.photo} alt={record.studentName} className="rounded-lg max-h-48 object-contain shadow-sm" />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+        )}
+    </div>
+  )}
+</div>
           
           {showLeaveModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
