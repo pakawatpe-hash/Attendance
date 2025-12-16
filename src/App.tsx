@@ -658,7 +658,7 @@ const loadFullStudentHistory = async (student: any) => {
       registerForm.secretCode !== TEACHER_SECRET_CODE
     ) {
       return alert(
-        "❌ รหัสยืนยันสำหรับอาจารย์ไม่ถูกต้อง! กรุณาติดต่อฝ่ายทะเบียนเพื่อขอรหัส"
+        "❌ รหัสยืนยันสำหรับอาจารย์ไม่ถูกต้อง! กรุณาติดต่อเเผนกคอมเพื่อขอรหัส"
       );
     }
 
@@ -2026,7 +2026,7 @@ const submitAttendance = async () => {
               <div className="bg-gray-50 rounded-xl p-6 min-h-[120px] flex items-center justify-center mb-6 border-2 border-dashed border-gray-200 relative group">
                 {randomResult ? (
                   <div className="text-center animate-pop-in">
-                    <span className="text-4xl">😭</span>
+                    <span className="text-4xl"></span>
                     <p className="text-xl font-bold text-purple-700 mt-2">{randomResult}</p>
                   </div>
                 ) : (
