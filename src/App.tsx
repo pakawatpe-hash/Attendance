@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-// @ts-ignore
+
 import {
   Camera,
   Clock,
@@ -35,7 +35,7 @@ import {
   Sparkles
 } from "lucide-react";
 
-// --- Firebase Imports ---
+
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import {
@@ -47,20 +47,20 @@ import {
   onSnapshot,
   query,
   updateDoc,
-  where // 🟢 1. เพิ่ม where เข้ามาเพื่อกรองข้อมูล
+  where 
 } from "firebase/firestore";
 
 
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeqlDsLOcUZN6GLJhntUjr6peBIf5ThNBbCKZVC968jtq9AEJiWDD1s6hQPZc3ktSnEw/exec";
 
-// --- Constants ---
+
 const COLLEGE_LAT = 14.105260105890562;
 const COLLEGE_LNG = 100.32044313706368;
 const MAX_DISTANCE_METERS = 50;
 
 const TEACHER_SECRET_CODE = "3399";
 
-// 🔊 Sound Effect File
+
 const SUCCESS_SOUND_URL = "https://www.soundjay.com/buttons/sounds/button-3.mp3";
 const ROLL_SOUND_URL = "https://www.soundjay.com/misc/sounds/magic-chime-01.mp3"; 
 
@@ -192,7 +192,7 @@ export default function PhotoAttendanceSystem() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isLoadingTeacherData, setIsLoadingTeacherData] = useState(false); // 
   const [isLoadingStudentHistory, setIsLoadingStudentHistory] = useState(true); // 
-  // 🟢 PWA: ตรวจจับอุปกรณ์
+  
   useEffect(() => {
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
@@ -225,13 +225,13 @@ export default function PhotoAttendanceSystem() {
     return () => unsubscribe();
   }, []);
 
-// 🟢 2. แก้ไขส่วนดึงข้อมูลให้เร็วขึ้น - โหลดเฉพาะข้อมูลของตัวเอง
+
 useEffect(() => {
   if (!firebaseUser || !db) return;
   
   console.log("🔄 เริ่มโหลดข้อมูล...");
   
-  // 1. ดึงข้อมูล Users
+
   const usersQuery = query(collection(db, "users"));
   const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
     const loadedUsers = snapshot.docs.map((doc) => ({
@@ -243,19 +243,19 @@ useEffect(() => {
     setIsDataLoaded(true); 
   });
 
-  // 2. ดึงข้อมูล Attendance - โหลดตามบทบาท
+
   let attendanceQuery;
   
-  // 🟢 ถ้ามี currentUser แล้ว ให้เช็คว่าเป็นนักเรียนหรือไม่
+
   if (currentUser && currentUser.role === "student") {
-    // นักเรียน: โหลดเฉพาะของตัวเอง
+ 
     attendanceQuery = query(
       collection(db, "attendance"),
       where("username", "==", currentUser.username)
     );
     console.log("👨‍🎓 นักเรียน: โหลดเฉพาะประวัติของตัวเอง");
   } else {
-    // อาจารย์: โหลดข้อมูลวันนี้
+
     const todayStr = new Date().toISOString().split('T')[0]; 
     attendanceQuery = query(
       collection(db, "attendance"),
@@ -282,13 +282,13 @@ useEffect(() => {
     
     console.log("✅ โหลด Attendance เสร็จ:", loadedRecords.length, "รายการ");
     setAttendanceRecords(loadedRecords);
-    setIsLoadingStudentHistory(false); // 🟢 โหลดเสร็จแล้ว
+    setIsLoadingStudentHistory(false); 
   }, (error) => {
     console.error("❌ Firebase Error:", error);
-    setIsLoadingStudentHistory(false); // 🟢 ถ้า error ก็หยุด loading
+    setIsLoadingStudentHistory(false); 
   });
 
-  // 3. ดึงข้อมูล Leaves (ระบบลา)
+
   const leavesQuery = query(collection(db, "leaves"));
   const unsubLeaves = onSnapshot(leavesQuery, (snapshot) => {
     const loadedLeaves = snapshot.docs.map((doc) => ({
@@ -306,14 +306,14 @@ useEffect(() => {
     unsubAttendance();
     unsubLeaves();
   };
-}, [firebaseUser, currentUser]); // 🟢 เพิ่ม currentUser เป็น dependency
+}, [firebaseUser, currentUser]); 
 useEffect(() => {
   if (!firebaseUser || !db || !currentUser) return;
   if (currentUser.role !== "teacher") return;
   
   const targetDate = filterDate;
   
-  // 🟢 เริ่ม Loading
+
   setIsLoadingTeacherData(true);
   console.log("🔄 อาจารย์ดูข้อมูลวันที่:", targetDate);
   
@@ -335,7 +335,7 @@ useEffect(() => {
     loadedRecords.sort((a, b) => b.checkInTime.getTime() - a.checkInTime.getTime());
     setAttendanceRecords(loadedRecords);
     
-    // 🟢 โหลดเสร็จแล้ว
+
     setIsLoadingTeacherData(false);
   });
 
@@ -361,7 +361,7 @@ useEffect(() => {
   }, [stream]);
   
 
-  // 🎲 Function: สุ่มชื่อนักเรียนพร้อม Animation
+
   const handleRandomStudent = () => {
     const studentsInGrade = users.filter(u => u.role === "student" && u.grade === selectedGrade);
     
@@ -374,9 +374,9 @@ useEffect(() => {
     setRandomResult(null);
 
     let count = 0;
-    const maxCount = 20; // จำนวนครั้งที่จะสลับชื่อ
+    const maxCount = 20; 
     const interval = setInterval(() => {
-      // สุ่มชื่อโชว์รัวๆ
+
       const randomIndex = Math.floor(Math.random() * studentsInGrade.length);
       setRandomResult(studentsInGrade[randomIndex].fullName);
       
@@ -384,11 +384,11 @@ useEffect(() => {
       if (count >= maxCount) {
         clearInterval(interval);
         setIsRolling(false);
-        // เล่นเสียงตอนจบ
+
         const audio = new Audio(ROLL_SOUND_URL);
-        audio.play().catch(() => {}); // กัน error กรณี browser บล็อกเสียง
+        audio.play().catch(() => {}); /
       }
-    }, 100); // ความเร็วในการสลับ (ms)
+    }, 100);
   };
 
   const handleGenerateGroups = () => {
@@ -438,7 +438,7 @@ useEffect(() => {
       setExpandedRecordId(id);
     }
   };
-// 🟢 ฟังก์ชันโหลดประวัติทั้งหมดของนักเรียน
+
 const loadFullStudentHistory = async (student: any) => {
   if (!db || !student) return;
   
@@ -473,12 +473,12 @@ const loadFullStudentHistory = async (student: any) => {
     alert("เกิดข้อผิดพลาดในการโหลดประวัติ");
   }
 };
-  // --- เปิด Modal แก้ไขข้อมูล (แยก Grade เป็น Level และ Room) ---
+
   const openEditModal = (student: any) => {
     setEditingStudent(student);
     
     let currentLevel = "";
-    let currentRoom = ""; // ถ้าเป็นค่าว่าง "" แปลว่า "ห้องเดียว"
+    let currentRoom = ""; 
 
     if (student.grade) {
         const parts = student.grade.split('/');
@@ -500,14 +500,14 @@ const loadFullStudentHistory = async (student: any) => {
     });
   };
 
-  // --- บันทึกข้อมูลแก้ไข (Logic รวม Grade) ---
+
   const saveStudentInfo = async () => {
     if (!db || !editingStudent) return;
     if (!editForm.fullName || !editForm.studentNumber || !editForm.level) {
       return alert("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
 
-    // 🟢 Logic รวมร่าง: ถ้าเลือกห้อง (1,2) ให้เติม /x ถ้าเลือก "ห้องเดียว" ("") ให้ใช้ชื่อชั้นเพียวๆ
+
     const newGrade = (editForm.room && editForm.room !== "") 
         ? `${editForm.level}/${editForm.room}` 
         : editForm.level;
@@ -523,17 +523,17 @@ const loadFullStudentHistory = async (student: any) => {
         });
         alert("บันทึกข้อมูลเรียบร้อยแล้ว ✅ ระบบจะรีโหลดเพื่ออัปเดตข้อมูล...");
         setEditingStudent(null); 
-        window.location.reload(); // รีโหลดเพื่อให้เห็นข้อมูลห้องใหม่ทันที
+        window.location.reload(); 
       } catch (err: any) {
         alert("เกิดข้อผิดพลาด: " + err.message);
       }
     }
   };
 
-  // --- ฟังก์ชันขอลาหยุด (เพิ่ม isSubmitting) ---
+
   const requestLeave = async () => {
     if (!db || !leaveReason) return alert("กรุณาระบุสาเหตุการลา");
-    if (isSubmittingLeave) return; // 🟢 กันเบิ้ล
+    if (isSubmittingLeave) return; 
     
     setIsSubmittingLeave(true);
 
@@ -545,9 +545,9 @@ const loadFullStudentHistory = async (student: any) => {
         grade: currentUser.grade,
         department: currentUser.department,
         reason: leaveReason,
-        status: "pending", // รออนุมัติ
+        status: "pending", 
         createdAt: new Date().toISOString(),
-        date: new Date().toISOString().split('T')[0] // ลาของวันนี้
+        date: new Date().toISOString().split('T')[0] 
       });
       alert("ส่งคำขอลาเรียบร้อยแล้ว! รออาจารย์อนุมัติ");
       setShowLeaveModal(false);
@@ -559,7 +559,7 @@ const loadFullStudentHistory = async (student: any) => {
     }
   };
 
-  // --- 🟢 อนุมัติลา + Auto Sync ไป Google Sheet ---
+
   const handleLeaveAction = async (leave: any, isApproved: boolean) => {
     if (!db) return;
     if(!confirm(`ต้องการ ${isApproved ? "อนุมัติ" : "ปฏิเสธ"} การลาของ ${leave.studentName} ใช่หรือไม่?`)) return;
@@ -585,26 +585,26 @@ const loadFullStudentHistory = async (student: any) => {
                 studentNumber: leave.studentNumber,
                 grade: leave.grade,
                 department: leave.department,
-                photo: "", // 🟢 ไม่ใช้รูป URL
+                photo: "", 
                 checkInTime: checkInTime,
                 status: "leave", 
                 location: { lat: 0, lng: 0 },
                 distance: 0,
                 isOffCampus: false,
-                leaveReason: leave.reason // 🟢 บันทึกเหตุผลลงไปด้วย
+                leaveReason: leave.reason 
             });
 
-            // 2. 🟢 Auto Sync to Google Sheet ทันที
+
             const payload = {
                 name: leave.studentName,
                 studentNumber: leave.studentNumber,
-                studentId: leave.studentNumber, // ถ้าไม่มีรหัสนักศึกษาใน leave object ให้ใช้ studentNumber แทน
+                studentId: leave.studentNumber, 
                 status: "leave",
                 checkInTime: formatTime(new Date(checkInTime)),
                 grade: leave.grade || "ไม่ระบุชั้น"
             };
             
-            // ยิงไป Google Apps Script (แบบไม่ต้องรอผลตอบกลับก็ได้ เพื่อความเร็ว)
+
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -635,7 +635,7 @@ const loadFullStudentHistory = async (student: any) => {
     setCurrentUser(user);
     setPage(user.role === "teacher" ? "teacher" : "student");
     setLoginForm({ username: "", password: "" });
-    // 🟢 เข้าได้เลย ไม่ต้องรอโหลดข้อมูล
+
   } else {
     alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
   }
@@ -662,7 +662,7 @@ const loadFullStudentHistory = async (student: any) => {
       );
     }
 
-    // ตรวจสอบ Level (Room ไม่ต้องบังคับ)
+
     if (
       registerForm.role === "student" &&
       (!registerForm.studentNumber || !registerForm.level)
@@ -680,7 +680,7 @@ const loadFullStudentHistory = async (student: any) => {
 
     if (registerForm.role === "student") {
       newUser.studentNumber = registerForm.studentNumber;
-      // 🟢 Logic รวมร่าง
+
       if (registerForm.room && registerForm.room !== "") {
         newUser.grade = `${registerForm.level}/${registerForm.room}`;
       } else {
@@ -699,7 +699,7 @@ const loadFullStudentHistory = async (student: any) => {
         fullName: "",
         role: "student",
         studentNumber: "",
-        level: "", room: "", // Reset
+        level: "", room: "",
         grade: "",
         department: "คอมพิวเตอร์",
         secretCode: "",
@@ -818,7 +818,7 @@ const submitAttendance = async () => {
     now.getHours() > parseInt(h) ||
     (now.getHours() === parseInt(h) && now.getMinutes() > parseInt(m));
 
-  // --- เช็คว่าวันนี้เคยเช็คชื่อไปหรือยัง (1 วัน 1 ครั้ง) ---
+
   const todayStr = now.toISOString().split('T')[0]; 
   const hasCheckedInToday = attendanceRecords.some((record) => {
     if (record.username !== currentUser.username) return false;
@@ -873,7 +873,7 @@ const submitAttendance = async () => {
       body: JSON.stringify(payload),
     });
 
-    // 🟢 เช็คว่า Sync สำเร็จไหม
+ 
     if (!response.ok) {
       console.error("❌ Sync failed:", response.status);
       alert("⚠️ เช็คชื่อสำเร็จแล้ว!\n\nหากการส่งล้มเหลว\nกรุณาแจ้งอาจารย์ให้กดซิงค์ข้อมูลใหม่");
@@ -882,9 +882,9 @@ const submitAttendance = async () => {
       console.log("✅ บันทึกสำเร็จ", result);
     }
 
-    // 🔊 Sound Effect
+
     const audio = new Audio(SUCCESS_SOUND_URL);
-    audio.play().catch(() => {}); // Ignore if browser blocks audio
+    audio.play().catch(() => {}); 
 
     setCapturedPhoto(null);
     alert("✅ เช็คชื่อสำเร็จ! บันทึกลงฐานข้อมูลเรียบร้อยเเล้ว");
@@ -983,7 +983,7 @@ const submitAttendance = async () => {
     }
   };
 
-  // --- Export CSV Function (Filtered by Month) ---
+
   const exportToCSV = (student: any) => {
     const studentRecords = attendanceRecords
       .filter((r) => {
@@ -1026,10 +1026,10 @@ const submitAttendance = async () => {
     document.body.removeChild(link);
   };
 
-  // --- UI Components ---
+
 
   if (page === "login") {
-    // (Login Code ...)
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
@@ -1116,11 +1116,9 @@ const submitAttendance = async () => {
   }
 
   if (page === "register") {
-    // (Register Code ...)
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center p-4">
-        {/* ... (Register UI - ละไว้ในฐานที่เข้าใจ หรือจะให้แปะเต็มๆ ก็บอกได้ครับ) ... */}
-        {/* พี่ขอแปะ UI Register เต็มๆ ให้เลยดีกว่าครับ จะได้ไม่หลุด */}
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
           <div className="text-center mb-8">
             <img
@@ -1204,7 +1202,7 @@ const submitAttendance = async () => {
                   />
                 </div>
                 
-                {/* 🟢 1. เลือก Level */}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ระดับชั้น</label>
                   <select value={registerForm.level} onChange={(e) => setRegisterForm({ ...registerForm, level: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -1217,7 +1215,6 @@ const submitAttendance = async () => {
                   </select>
                 </div>
 
-                {/* 🟢 2. เลือก Room */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">ห้อง</label>
                   <select value={registerForm.room} onChange={(e) => setRegisterForm({ ...registerForm, room: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
@@ -1328,7 +1325,7 @@ const submitAttendance = async () => {
     );
   }
 
-  // Student Page
+
   if (page === "student") {
     const isOffCampus = distanceToCollege
       ? distanceToCollege > MAX_DISTANCE_METERS
@@ -1336,10 +1333,9 @@ const submitAttendance = async () => {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        {/* ... (Student Page Code - เหมือนเดิม) ... */}
-        {/* พี่ขอแปะย่อๆ ตรงนี้นะครับ เพราะโค้ดยาวมาก ถ้าก๊อปไปวางทับไฟล์เดิมได้เลย */}
+
         <div className="max-w-2xl mx-auto">
-          {/* Header */}
+
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1356,7 +1352,7 @@ const submitAttendance = async () => {
             <div className="text-sm text-gray-600">เวลาสาย: หลัง {lateTime} น.</div>
           </div>
 
-          {/* Camera Section */}
+
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-4">ถ่ายรูปเช็คชื่อ</h2>
             {!showCamera && !capturedPhoto && (
@@ -1409,7 +1405,7 @@ const submitAttendance = async () => {
           <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
   <h2 className="text-xl font-bold text-gray-800 mb-4">ประวัติการเช็คชื่อของฉัน</h2>
   
-  {/* 🟢 Loading UI */}
+
   {isLoadingStudentHistory ? (
     <div className="flex flex-col items-center justify-center py-12 bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200">
       <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
@@ -1499,7 +1495,7 @@ const submitAttendance = async () => {
     );
   }
 
-  // Teacher Page
+
   if (page === "teacher") {
     const gradesFromRecords = attendanceRecords.map((r) => r.grade);
     const gradesFromUsers = users.filter((u) => u.role === "student").map((u) => u.grade);
@@ -1508,7 +1504,7 @@ const submitAttendance = async () => {
     const gradeRecs = attendanceRecords.filter((r) => { const recordDate = formatDateForInput(r.checkInTime); return r.grade === activeGrade && recordDate === filterDate; });
     const gradePresent = gradeRecs.filter((r) => r.status === "present").length;
     const gradeLate = gradeRecs.filter((r) => r.status === "late").length;
-    // 🟢 คำนวณยอดลา
+
     const gradeLeave = gradeRecs.filter((r) => r.status === "leave").length;
 
     return (
@@ -1853,7 +1849,7 @@ const submitAttendance = async () => {
         </span> 
         รายชื่อนักเรียน ({activeGrade || "เลือกชั้นเรียน"})
       </h2>
-  {/* 🟢 Loading UI - แสดงตอนกำลังโหลดข้อมูล */}
+
   {isLoadingTeacherData ? (
     <div className="flex flex-col items-center justify-center py-12 bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200 animate-pulse">
       <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
@@ -1885,7 +1881,7 @@ const submitAttendance = async () => {
             <div className="text-xl sm:text-2xl font-bold text-gray-400 w-6 sm:w-8 text-center shrink-0">
               {record.studentNumber}
             </div>
-            {/* 🟢 4. ส่วนแสดงรูปในหน้าหลัก (List View) */}
+  
                     {record.status === "leave" ? (
                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 sm:border-4 border-white shadow-sm shrink-0 bg-blue-100 flex items-center justify-center">
                            <User className="text-blue-500 w-6 h-6 sm:w-8 sm:h-8" />
@@ -1896,7 +1892,7 @@ const submitAttendance = async () => {
                     
                     <div className="flex-1 min-w-0"><div className="font-bold text-base sm:text-lg text-gray-800 truncate mb-0.5 sm:mb-1">{record.studentName}</div><div className="flex flex-wrap items-center gap-1 sm:gap-2"><span className="bg-white border px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[10px] sm:text-xs text-gray-500 font-medium whitespace-nowrap">{record.grade}</span><span className="text-gray-500 text-xs sm:text-sm truncate">{formatDate(record.checkInTime)}</span></div>
                     
-                    {/* 🟢 5. แสดงเหตุผลการลา (เพิ่มตรงนี้) */}
+        
                     {record.status === "leave" && record.leaveReason && (
                          <div className="text-xs text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded-md inline-block">
                             <strong>เหตุผล:</strong> {record.leaveReason}
@@ -1904,7 +1900,7 @@ const submitAttendance = async () => {
                     )}
 
                   </div><div className="text-right shrink-0"><div className={`text-lg sm:text-2xl font-bold mb-0.5 sm:mb-1 ${record.status === "late" ? "text-orange-600" : (record.status === "leave" ? "text-blue-600" : "text-green-600")}`}>{formatTime(record.checkInTime)}</div><div className={`inline-block px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold whitespace-nowrap ${record.status === "late" ? "bg-orange-200 text-orange-800" : (record.status === "leave" ? "bg-blue-500 text-white" : "bg-green-200 text-green-800")}`}>{record.status === "late" ? "สาย" : (record.status === "leave" ? "ลา" : "ทันเวลา")}</div></div><div className="pl-1 sm:pl-2 text-gray-400 shrink-0">{expandedRecordId === record.id ? (<ChevronUp size={16} />) : (<ChevronDown size={16} />)}</div></div>{expandedRecordId === record.id && (<div className="bg-white border-t border-gray-100 p-4 animate-fade-in"><div className="flex flex-col md:flex-row gap-4"><div className="flex-1"><p className="text-sm font-bold text-gray-500 mb-2">รูปถ่ายยืนยัน:</p>
-                    {/* 🟢 6. ส่วนขยาย (Expanded View) */}
+           
                     {record.status === "leave" ? (
                          <div className="w-full h-48 bg-blue-50 rounded-lg flex flex-col items-center justify-center border border-blue-100">
                             <User className="text-blue-300 w-16 h-16 mb-2" />
@@ -1922,7 +1918,7 @@ const submitAttendance = async () => {
           </div>
         </div>
 
-        {/* Modal สำหรับแก้ไขข้อมูล (Popup) */}
+  }
         {editingStudent && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -1950,7 +1946,7 @@ const submitAttendance = async () => {
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" 
                   />
                 </div>
-                {/* 🟢 แก้ไขตรงนี้: แยก Grade เป็น Level และ Room */}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ระดับชั้น</label>
                   <select 
@@ -1972,7 +1968,7 @@ const submitAttendance = async () => {
                     onChange={(e) => setEditForm({...editForm, room: e.target.value})} 
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">ไม่ระบุ</option> {/* 🟢 แก้คำตรงนี้ */}
+                    <option value="">ไม่ระบุ</option> 
                     <option value="1">ห้อง 1</option>
                     <option value="2">ห้อง 2</option>
                   </select>
@@ -2008,7 +2004,7 @@ const submitAttendance = async () => {
           </div>
         )}
 
-        {/* 🎲 Random Modal */}
+
         {showRandomModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative overflow-hidden">
@@ -2044,7 +2040,7 @@ const submitAttendance = async () => {
           </div>
         )}
 
-        {/* 👥 Group Modal */}
+
         {showGroupModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col relative overflow-hidden">
@@ -2061,7 +2057,7 @@ const submitAttendance = async () => {
                         <button onClick={() => { setShowGroupModal(false); setGroups([]); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} className="text-gray-400" /></button>
                     </div>
 
-                    {/* Controls */}
+                
                     <div className="p-6 bg-orange-50 border-b border-orange-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
                         <div className="flex items-center gap-3 w-full sm:w-auto">
                             <label className="text-sm font-bold text-orange-800 whitespace-nowrap">จำนวนคนต่อกลุ่ม:</label>
@@ -2085,7 +2081,7 @@ const submitAttendance = async () => {
                         </button>
                     </div>
 
-                    {/* Content (Scrollable) */}
+                 
                     <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
                         {groups.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
